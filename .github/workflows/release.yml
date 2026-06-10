@@ -1,0 +1,256 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. v0.3.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Resolve version
+        id: ver
+        shell: pwsh
+        run: |
+          $v = if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            "${{ github.event.inputs.version }}"
+          } else {
+            "${{ github.ref_name }}"
+          }
+          echo "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Stage artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $version = "${{ steps.ver.outputs.version }}"
+          Copy-Item target/release/markdown-editor.exe `
+            "dist/markdown-editor-$version-windows-x64.exe"
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-dist
+          path: dist/*
+      # end build-windows
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libgtk-3-dev libssl-dev fuse3 libfuse2
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Stage binary tarball
+        run: |
+          mkdir -p dist
+          version=${{ steps.ver.outputs.version }}
+          cp target/release/markdown-editor dist/
+          tar -czf "dist/markdown-editor-${version}-linux-x64.tar.gz" -C dist markdown-editor
+
+      - name: Build AppImage
+        run: bash ./scripts/make_appimage.sh
+        shell: bash
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-dist
+          path: dist/*
+      # end build-linux
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create .app bundle
+        run: |
+          version=${{ steps.ver.outputs.version }}
+          appdir="dist/MarkdownEditor.app"
+          mkdir -p "${appdir}/Contents/MacOS" "${appdir}/Contents/Resources"
+
+          cp target/release/markdown-editor "${appdir}/Contents/MacOS/"
+
+          cat > "${appdir}/Contents/Info.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>markdown-editor</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.github.markdown-editor</string>
+              <key>CFBundleName</key>
+              <string>Markdown Editor</string>
+              <key>CFBundleVersion</key>
+              <string>${version#v}</string>
+              <key>CFBundleShortVersionString</key>
+              <string>${version#v}</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>LSMinimumSystemVersion</key>
+              <string>10.15</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Create DMG
+        run: |
+          version=${{ steps.ver.outputs.version }}
+          brew install create-dmg 2>/dev/null || true
+          mkdir -p dist
+          if command -v create-dmg &>/dev/null; then
+            create-dmg \
+              --volname "Markdown Editor ${version}" \
+              --window-pos 200 120 \
+              --window-size 600 400 \
+              --icon-size 100 \
+              --icon "MarkdownEditor.app" 150 190 \
+              --app-drop-link 450 190 \
+              "dist/markdown-editor-${version}-macos-x64.dmg" \
+              "dist/MarkdownEditor.app/"
+          else
+            hdiutil create -volname "Markdown Editor ${version}" \
+              -srcfolder dist/MarkdownEditor.app \
+              -ov \
+              "dist/markdown-editor-${version}-macos-x64.dmg"
+          fi
+
+      - name: Stage binary tarball (fallback)
+        run: |
+          version=${{ steps.ver.outputs.version }}
+          cp target/release/markdown-editor dist/
+          tar -czf "dist/markdown-editor-${version}-macos-x64.tar.gz" -C dist markdown-editor
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dist
+          path: dist/*
+      # end build-macos
+
+  create-release:
+    needs: [build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-dist
+          path: dist/windows
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-dist
+          path: dist/linux
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-dist
+          path: dist/macos
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.version }}
+          name: ${{ steps.ver.outputs.version }}
+          files: |
+            dist/windows/*
+            dist/linux/*
+            dist/macos/*
+          generate_release_notes: true

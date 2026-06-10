@@ -1,0 +1,16 @@
+/target
+*.exe
+*.pdb
+
+# User-local Claude/CCD state — not part of the project
+/memory
+.claude/
+AGENTS.md
+
+/.markdown-editor
+/dist
+
+# plan
+plan.md
+plan_voice.md
+voice_debug.log
