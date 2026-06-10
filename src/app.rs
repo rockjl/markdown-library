@@ -115,7 +115,7 @@ impl MarkdownApp {
                             ..Default::default()
                         },
                     );
-                    let galley = ui.fonts(|f| f.layout_job(job));
+                    let galley = ui.ctx().fonts_mut(|f| f.layout_job(job));
                     ui.painter().text(egui::pos2(x, y), egui::Align2::LEFT_TOP, pre, font.clone(), normal_color);
                     x += galley.size().x;
                 }
@@ -133,7 +133,7 @@ impl MarkdownApp {
                         ..Default::default()
                     },
                 );
-                let galley = ui.fonts(|f| f.layout_job(job));
+                let galley = ui.ctx().fonts_mut(|f| f.layout_job(job));
                 ui.painter().text(egui::pos2(x, y), egui::Align2::LEFT_TOP, seg, font.clone(), hl_color);
                 x += galley.size().x;
 
@@ -500,7 +500,7 @@ impl MarkdownApp {
         // Toolbar area: full toolbar or a collapsed compact bar
         egui::Frame::none()
             .fill(c.toolbar_bg)
-            .inner_margin(egui::Margin::symmetric(12.0, 8.0))
+            .inner_margin(egui::Margin::symmetric(12, 8))
             .show(ui, |ui| {
                 if self.toolbar_collapsed {
                     ui.horizontal(|ui| {
@@ -705,7 +705,7 @@ impl MarkdownApp {
         // Header
         egui::Frame::none()
             .fill(c.sidebar_bg)
-            .inner_margin(egui::Margin::symmetric(12.0, 10.0))
+            .inner_margin(egui::Margin::symmetric(12, 10))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     let btn_size = egui::vec2(32.0, 32.0);
@@ -774,7 +774,7 @@ impl MarkdownApp {
         // Search
                 egui::Frame::none()
                     .fill(c.sidebar_bg)
-                    .inner_margin(egui::Margin::symmetric(10.0, 8.0))
+                    .inner_margin(egui::Margin::symmetric(10, 8))
                     .show(ui, |ui| {
                 let search_resp = ui.add(
                     TextEdit::singleline(&mut self.search_query)
@@ -827,7 +827,7 @@ impl MarkdownApp {
         // View tabs: All / Starred / Trash
         egui::Frame::none()
             .fill(c.sidebar_bg)
-            .inner_margin(egui::Margin::symmetric(8.0, 4.0))
+            .inner_margin(egui::Margin::symmetric(8, 4))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     let all_btn = egui::SelectableLabel::new(
@@ -863,7 +863,7 @@ impl MarkdownApp {
         // Tag filter chips
         egui::Frame::none()
             .fill(c.sidebar_bg)
-            .inner_margin(egui::Margin::symmetric(8.0, 6.0))
+            .inner_margin(egui::Margin::symmetric(8, 6))
             .show(ui, |ui| {
                 ui.horizontal_wrapped(|ui| {
                     ui.label(RichText::new("Tags:").color(c.text_dim).size(11.0));
@@ -1428,7 +1428,7 @@ impl MarkdownApp {
 
         egui::Frame::none()
             .fill(c.header_bg)
-            .inner_margin(egui::Margin::symmetric(12.0, 6.0))
+            .inner_margin(egui::Margin::symmetric(12, 6))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     // Title editor (single-line)
@@ -1436,7 +1436,7 @@ impl MarkdownApp {
                     let title_resp = ui.add(
                         TextEdit::singleline(&mut note.title)
                             .desired_width(220.0)
-                            .frame(false)
+                            .frame(egui::Frame::NONE)
                             .font(FontId::new(14.0, FontFamily::Proportional))
                             .text_color(c.text_strong),
                     );
@@ -1553,7 +1553,7 @@ impl MarkdownApp {
                         ui.add(
                             TextEdit::multiline(&mut line_nums.as_str())
                                 .desired_width(36.0)
-                                .frame(false)
+                                .frame(egui::Frame::NONE)
                                 .interactive(false)
                                 .font(FontId::new(font_size, FontFamily::Monospace))
                                 .text_color(c.line_number),
@@ -1570,13 +1570,13 @@ impl MarkdownApp {
                     let theme_mode = self.settings.theme;
                     let text_color = c.text_normal;
 
-                    let mut layouter = |ui: &Ui, text: &str, wrap_width: f32| {
+                    let mut layouter = |ui: &Ui, text: &dyn egui::TextBuffer, wrap_width: f32| {
                         let mut job = if syntax_highlight {
-                            highlight::layout_markdown(text, font_size, theme_mode, text_color)
+                            highlight::layout_markdown(text.as_str(), font_size, theme_mode, text_color)
                         } else {
                             let mut j = egui::text::LayoutJob::default();
                             j.append(
-                                text,
+                                text.as_str(),
                                 0.0,
                                 egui::text::TextFormat {
                                     font_id: FontId::new(font_size, FontFamily::Monospace),
@@ -1589,13 +1589,13 @@ impl MarkdownApp {
                         if word_wrap {
                             job.wrap.max_width = wrap_width;
                         }
-                        ui.fonts(|f| f.layout_job(job))
+                        ui.ctx().fonts_mut(|f| f.layout_job(job))
                     };
 
                     let mut editor = TextEdit::multiline(&mut note.content)
                         .id(editor_id)
                         .desired_rows(40)
-                        .frame(false)
+                        .frame(egui::Frame::NONE)
                         .font(FontId::new(font_size, FontFamily::Monospace))
                         .text_color(c.text_normal)
                         .lock_focus(true)
@@ -1633,7 +1633,7 @@ impl MarkdownApp {
                     // Apply pending markdown action (toolbar/shortcut)
                     if let Some(action) = self.pending_action.take() {
                         let (sel_start, sel_end) = if let Some(range) = output.cursor_range {
-                            (range.primary.ccursor.index, range.secondary.ccursor.index)
+                            (range.primary.index, range.secondary.index)
                         } else {
                             let end = note.content.chars().count();
                             (end, end)
@@ -1658,7 +1658,7 @@ impl MarkdownApp {
                     // Apply line move (Alt+Up/Down)
                     if let Some(up) = self.pending_line_move.take() {
                         let (sel_start, sel_end) = if let Some(range) = output.cursor_range {
-                            (range.primary.ccursor.index, range.secondary.ccursor.index)
+                            (range.primary.index, range.secondary.index)
                         } else {
                             (0, 0)
                         };
@@ -1687,7 +1687,7 @@ impl MarkdownApp {
                         // Cursor is now after the inserted newline; we need to handle
                         // the case AFTER egui inserted the '\n'. Re-derive cursor.
                         if let Some(range) = output.cursor_range {
-                            let cursor = range.primary.ccursor.index;
+                            let cursor = range.primary.index;
                             // We want to inspect the line that ended at cursor-1 (the just-broken line).
                             // After egui inserts \n, the previous line is the marker line.
                             // We need to look at line BEFORE cursor.
@@ -1753,7 +1753,7 @@ impl MarkdownApp {
         egui::Frame::none().fill(c.preview_bg).show(ui, |ui| {
             egui::Frame::none()
                 .fill(c.header_bg)
-                .inner_margin(egui::Margin::symmetric(12.0, 6.0))
+                .inner_margin(egui::Margin::symmetric(12, 6))
                 .show(ui, |ui| {
                     ui.horizontal(|ui| {
                         ui.label(
@@ -1799,7 +1799,7 @@ impl MarkdownApp {
                 .show(ui, |ui| {
                     ui.set_max_width(ui.available_width());
                     egui::Frame::none()
-                        .inner_margin(egui::Margin::symmetric(20.0, 16.0))
+                        .inner_margin(egui::Margin::symmetric(20, 16))
                         .show(ui, |ui| {
                             ui.set_max_width(ui.available_width());
                             CommonMarkViewer::new()
@@ -2013,7 +2013,7 @@ impl MarkdownApp {
             .frame(
                 egui::Frame::none()
                     .fill(c.toolbar_bg)
-                    .inner_margin(egui::Margin::symmetric(8.0, 6.0)),
+                    .inner_margin(egui::Margin::symmetric(8, 6)),
             )
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
@@ -2199,7 +2199,7 @@ impl MarkdownApp {
 
         egui::Frame::none()
             .fill(c.header_bg)
-            .inner_margin(egui::Margin::symmetric(12.0, 6.0))
+            .inner_margin(egui::Margin::symmetric(12, 6))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label(RichText::new("🔗  Links").color(c.text_dim).size(12.0));
@@ -2368,7 +2368,7 @@ impl MarkdownApp {
                 egui::Frame::popup(&ctx.style())
                     .fill(c.toolbar_bg)
                     .rounding(8.0)
-                    .inner_margin(egui::Margin::same(10.0)),
+                    .inner_margin(egui::Margin::same(10)),
             )
             .show(ctx, |ui| {
                 ui.set_width(460.0);
@@ -2379,7 +2379,7 @@ impl MarkdownApp {
                             .hint_text("Search notes... (Ctrl+P)")
                             .desired_width(f32::INFINITY)
                             .font(FontId::new(14.0, FontFamily::Proportional))
-                            .frame(false),
+                            .frame(egui::Frame::NONE),
                     );
                     if self.quick_switcher.focus_query {
                         resp.request_focus();
@@ -2418,7 +2418,7 @@ impl MarkdownApp {
                         let resp = egui::Frame::none()
                             .fill(bg)
                             .rounding(4.0)
-                            .inner_margin(egui::Margin::symmetric(8.0, 4.0))
+                            .inner_margin(egui::Margin::symmetric(8, 4))
                             .show(ui, |ui| {
                                 ui.set_width(ui.available_width());
                                 ui.horizontal(|ui| {
@@ -2515,7 +2515,7 @@ impl MarkdownApp {
         let c = self.colors();
         egui::Frame::none()
             .fill(c.header_bg)
-            .inner_margin(egui::Margin::symmetric(12.0, 6.0))
+            .inner_margin(egui::Margin::symmetric(12, 6))
             .show(ui, |ui| {
                 ui.label(RichText::new("📑  TOC").color(c.text_dim).size(12.0));
             });
@@ -2713,7 +2713,8 @@ fn load_user_font(ctx: &egui::Context, font_choice: FontChoice) {
 }
 
 impl eframe::App for MarkdownApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = ui.ctx();
         self.handle_shortcuts(ctx);
         self.ensure_valid_selection();
         // lazily create a filesystem watcher for the content directory
@@ -2777,7 +2778,7 @@ impl eframe::App for MarkdownApp {
             .frame(
                 egui::Frame::none()
                     .fill(c.menu_bg)
-                    .inner_margin(egui::Margin::symmetric(8.0, 4.0)),
+                    .inner_margin(egui::Margin::symmetric(8, 4)),
             )
             .show(ctx, |ui| {
                 egui::menu::bar(ui, |ui| {
@@ -2880,7 +2881,7 @@ impl eframe::App for MarkdownApp {
         }
         let status_override = self.status_override.clone();
         egui::TopBottomPanel::bottom("status_bar")
-            .frame(egui::Frame::none().fill(c.menu_bg).inner_margin(egui::Margin::symmetric(12.0, 6.0)))
+            .frame(egui::Frame::none().fill(c.menu_bg).inner_margin(egui::Margin::symmetric(12, 6)))
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
                     let mut status_parts = Vec::new();
