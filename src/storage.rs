@@ -6,11 +6,11 @@ use std::path::PathBuf;
 
 pub fn data_dir() -> PathBuf {
     if let Ok(appdata) = std::env::var("APPDATA") {
-        let p = PathBuf::from(appdata).join("markdown-editor");
+        let p = PathBuf::from(appdata).join("markdown-library");
         let _ = fs::create_dir_all(&p);
         return p;
     }
-    let p = PathBuf::from(".markdown-editor");
+    let p = PathBuf::from(".markdown-library");
     let _ = fs::create_dir_all(&p);
     p
 }

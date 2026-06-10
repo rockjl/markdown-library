@@ -36,7 +36,7 @@ fn load_icon() -> egui::IconData {
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("Markdown Editor")
+            .with_title("Markdown Library")
             .with_inner_size([1280.0, 800.0])
             .with_min_inner_size([800.0, 500.0])
             .with_icon(load_icon()),
@@ -44,7 +44,7 @@ fn main() -> eframe::Result<()> {
     };
 
     eframe::run_native(
-        "Markdown Editor",
+        "Markdown Library",
         options,
         Box::new(|cc| Ok(Box::new(MarkdownApp::new(cc)))),
     )

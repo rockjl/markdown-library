@@ -51,8 +51,8 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           $version = "${{ steps.ver.outputs.version }}"
-          Copy-Item target/release/markdown-editor.exe `
-            "dist/markdown-editor-$version-windows-x64.exe"
+          Copy-Item target/release/markdown-library.exe `
+            "dist/markdown-library-$version-windows-x64.exe"
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -100,8 +100,8 @@ jobs:
         run: |
           mkdir -p dist
           version=${{ steps.ver.outputs.version }}
-          cp target/release/markdown-editor dist/
-          tar -czf "dist/markdown-editor-${version}-linux-x64.tar.gz" -C dist markdown-editor
+          cp target/release/markdown-library dist/
+          tar -czf "dist/markdown-library-${version}-linux-x64.tar.gz" -C dist markdown-library
 
       - name: Build AppImage
         run: bash ./scripts/make_appimage.sh
@@ -150,7 +150,7 @@ jobs:
           appdir="dist/MarkdownEditor.app"
           mkdir -p "${appdir}/Contents/MacOS" "${appdir}/Contents/Resources"
 
-          cp target/release/markdown-editor "${appdir}/Contents/MacOS/"
+          cp target/release/markdown-library "${appdir}/Contents/MacOS/"
 
           cat > "${appdir}/Contents/Info.plist" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
@@ -158,11 +158,11 @@ jobs:
           <plist version="1.0">
           <dict>
               <key>CFBundleExecutable</key>
-              <string>markdown-editor</string>
+              <string>markdown-library</string>
               <key>CFBundleIdentifier</key>
-              <string>com.github.markdown-editor</string>
+              <string>com.github.markdown-library</string>
               <key>CFBundleName</key>
-              <string>Markdown Editor</string>
+              <string>Markdown Library</string>
               <key>CFBundleVersion</key>
               <string>${version#v}</string>
               <key>CFBundleShortVersionString</key>
@@ -182,26 +182,26 @@ jobs:
           mkdir -p dist
           if command -v create-dmg &>/dev/null; then
             create-dmg \
-              --volname "Markdown Editor ${version}" \
+              --volname "Markdown Library ${version}" \
               --window-pos 200 120 \
               --window-size 600 400 \
               --icon-size 100 \
               --icon "MarkdownEditor.app" 150 190 \
               --app-drop-link 450 190 \
-              "dist/markdown-editor-${version}-macos-x64.dmg" \
+              "dist/markdown-library-${version}-macos-x64.dmg" \
               "dist/MarkdownEditor.app/"
           else
-            hdiutil create -volname "Markdown Editor ${version}" \
+            hdiutil create -volname "Markdown Library ${version}" \
               -srcfolder dist/MarkdownEditor.app \
               -ov \
-              "dist/markdown-editor-${version}-macos-x64.dmg"
+              "dist/markdown-library-${version}-macos-x64.dmg"
           fi
 
       - name: Stage binary tarball (fallback)
         run: |
           version=${{ steps.ver.outputs.version }}
-          cp target/release/markdown-editor dist/
-          tar -czf "dist/markdown-editor-${version}-macos-x64.tar.gz" -C dist markdown-editor
+          cp target/release/markdown-library dist/
+          tar -czf "dist/markdown-library-${version}-macos-x64.tar.gz" -C dist markdown-library
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4

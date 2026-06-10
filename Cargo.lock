@@ -2302,7 +2302,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "markdown-editor"
+name = "markdown-library"
 version = "0.3.1"
 dependencies = [
  "arboard",

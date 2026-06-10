@@ -1,4 +1,4 @@
-# Markdown Editor
+# Markdown Library
 
 A lightweight, native Markdown + interview-prep editor built with Rust + egui.
 Three-pane layout with semantic search, voice-powered ASR question retrieval (Push-To-Talk F12),
@@ -17,7 +17,7 @@ and a Library/Interview dual-mode sidebar.
 - **Syntax highlighting** in the editor via `syntect`
 - **Auto list continuation** for `-`, `*`, `+`, `>`, `- [ ]`, and numbered lists
 - **Move lines** with `Alt+↑/↓`
-- **Auto-save** to `.markdown-editor/content/<id>.md`
+- **Auto-save** to `.markdown-library/content/<id>.md`
 - **Trash** with restore / permanent delete
 - **Favorites** (★) and tags
 - **TOC panel** with click-to-jump
@@ -34,7 +34,7 @@ and a Library/Interview dual-mode sidebar.
 cargo build --release
 ```
 
-The single executable lands at `target/release/markdown-editor` (~8 MB, no external DLLs required on Windows).
+The single executable lands at `target/release/markdown-library` (~8 MB, no external DLLs required on Windows).
 
 ### Linux
 
@@ -52,10 +52,10 @@ cargo build --release
 
 ## Data location
 
-All data lives in `.markdown-editor/` (local to the working directory, or `$APPDATA/markdown-editor/` on Windows):
+All data lives in `.markdown-library/` (local to the working directory, or `$APPDATA/markdown-library/` on Windows):
 
 ```
-.markdown-editor/
+.markdown-library/
 ├── content/           # Notes as <id>.md with YAML front-matter (authoritative store)
 ├── index.json         # Pre-computed search tokens (built on save)
 ├── settings.json      # UI theme, font, sidebar batch
