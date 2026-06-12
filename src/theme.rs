@@ -1,21 +1,38 @@
+//! Theme colour palettes and egui style application.
+
 use crate::settings::ThemeMode;
 use egui::{Color32, FontFamily, FontId, Style, TextStyle, Visuals};
 
+/// Colour palette for the UI.
 #[derive(Clone, Copy)]
 pub struct ThemeColors {
+    /// Background colour for the sidebar panel.
     pub sidebar_bg: Color32,
+    /// Background colour for the editor panel.
     pub editor_bg: Color32,
+    /// Background colour for the preview panel.
     pub preview_bg: Color32,
+    /// Background colour for the toolbar area.
     pub toolbar_bg: Color32,
+    /// Background colour for panel headers.
     pub header_bg: Color32,
+    /// Background colour for the currently selected list item.
     pub selected_item_bg: Color32,
+    /// Background colour for hovered list items.
     pub hover_item_bg: Color32,
+    /// Accent colour used for highlights, hyperlinks, and active elements.
     pub accent: Color32,
+    /// Muted/dim text colour.
     pub text_dim: Color32,
+    /// Normal body text colour.
     pub text_normal: Color32,
+    /// Strong/emphasised text colour (usually white or near-black).
     pub text_strong: Color32,
+    /// Colour for editor line-number gutter.
     pub line_number: Color32,
+    /// Background colour for buttons.
     pub button_bg: Color32,
+    /// Background colour for dropdown menus.
     pub menu_bg: Color32,
 }
 
@@ -53,6 +70,7 @@ pub const LIGHT: ThemeColors = ThemeColors {
     menu_bg: Color32::from_rgb(235, 237, 240),
 };
 
+/// Return the colour palette for the given theme mode.
 pub fn colors(mode: ThemeMode) -> ThemeColors {
     match mode {
         ThemeMode::Dark => DARK,
@@ -60,6 +78,11 @@ pub fn colors(mode: ThemeMode) -> ThemeColors {
     }
 }
 
+/// Apply the chosen theme mode and font size to an egui context.
+///
+/// * `ctx` — egui context to style.
+/// * `mode` — `Dark` or `Light`.
+/// * `font_size` — monospace font size in points.
 pub fn apply(ctx: &egui::Context, mode: ThemeMode, font_size: f32) {
     let c = colors(mode);
     let mut style = Style::default();

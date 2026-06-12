@@ -1,26 +1,32 @@
+// Copyright (c) 2025 markdown-library
+// SPDX-License-Identifier: MIT
+
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app;
 mod asr;
-mod search;
 mod attachments;
+mod debug_log;
 mod editor_actions;
 mod export;
 mod find_replace;
 mod highlight;
 mod note;
+mod search;
 mod settings;
 mod storage;
 mod theme;
 mod toc;
+mod ui;
 mod voice;
-mod wikilinks;
 mod watcher;
+mod wikilinks;
 
-use app::MarkdownApp;
+use ui::MarkdownApp;
 
 const ICON_PNG: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/icon.png"));
 
+/// Decode the embedded PNG icon into egui's `IconData`.
 fn load_icon() -> egui::IconData {
     let img = image::load_from_memory(ICON_PNG)
         .expect("decode embedded icon")
@@ -33,6 +39,7 @@ fn load_icon() -> egui::IconData {
     }
 }
 
+/// Application entry point. Creates the native window and runs the egui event loop.
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()

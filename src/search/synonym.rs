@@ -1,3 +1,5 @@
+//! Synonym map for normalizing related terms.
+
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
@@ -14,6 +16,7 @@ static SYNONYMS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|
     m
 });
 
+/// Map a token to its canonical form if a synonym exists, otherwise return it unchanged.
 pub fn apply_synonym(token: &str) -> &str {
     SYNONYMS.get(token).copied().unwrap_or(token)
 }

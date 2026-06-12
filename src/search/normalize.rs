@@ -1,3 +1,5 @@
+//! Text tokenization pipeline: lowercasing, filler/stop-word removal, stemming, synonym application.
+
 const FILLERS: &[&str] = &[
     "um", "uh", "like", "actually", "basically", "you know", "well", "so", "right", "okay",
 ];
@@ -22,9 +24,12 @@ const STOP_WORDS: &[&str] = &[
     "ourselves", "yourselves", "themselves",
 ];
 
+/// Normalise a text string into a deduplicated list of stemmed tokens.
+///
+/// Pipeline: lowercase → remove punctuation → split whitespace → remove filler/stop words
+/// → apply synonyms → deduplicate adjacent identical tokens → English stemmer.
 pub fn normalize(text: &str) -> Vec<String> {
     let text = text.to_lowercase();
-
     let text = regex::Regex::new(r"[^\w\s'-]")
         .unwrap()
         .replace_all(&text, " ")

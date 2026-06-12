@@ -1,11 +1,27 @@
+//! Process ASR voice transcripts: extract questions, split queries, and search.
+
 use std::collections::HashMap;
 
 use crate::search::index::SearchIndex;
 use crate::search::matcher::{SearchConfig, SearchHit, search};
+use crate::storage;
 
-/// Split a transcript into multiple sub-queries using conjunction markers
+/// Split a transcript into sub-queries using conjunction markers.
+///
+/// Markers include `"and also"`, `"what about"`, `"vs"`, etc.
+/// Returns one or more query strings to search independently.
 pub fn split_queries(text: &str) -> Vec<String> {
-    let markers = ["and also", "also", "next question", "what about", "another question", "and", "plus", "vs", "versus"];
+    let markers = [
+        "and also",
+        "also",
+        "next question",
+        "what about",
+        "another question",
+        "and",
+        "plus",
+        "vs",
+        "versus",
+    ];
     let mut segments = vec![text.to_string()];
 
     for marker in &markers {
@@ -24,16 +40,12 @@ pub fn split_queries(text: &str) -> Vec<String> {
     segments
 }
 
-/// Extract question-like segments from a transcript
-pub fn extract_questions(transcript: &str) -> Vec<String> {
-    let markers = [
-        "what is", "what are", "why", "how", "when", "where",
-        "difference between", "compare", "explain", "describe", "tell me about",
-        "could you explain", "tell me about", "walk me through", "what makes",
-        "why did you choose", "how does", "how would you", "can you describe",
-        "what happens when", "what is the difference between",
-    ];
-
+/// Extract question-like segments from a transcript using the provided markers.
+///
+/// * `transcript` — raw ASR output text.
+/// * `markers` — trigger phrases (e.g. `"what is"`, `"explain"`, `"how does"`).
+/// Returns the text that follows each matched marker, one question per segment.
+pub fn extract_questions(transcript: &str, markers: &[String]) -> Vec<String> {
     let lower = transcript.to_lowercase();
     let mut questions = Vec::new();
 
@@ -44,7 +56,7 @@ pub fn extract_questions(transcript: &str) -> Vec<String> {
         .collect();
 
     for sentence in &sentences {
-        for marker in &markers {
+        for marker in markers.iter() {
             if let Some(pos) = sentence.find(marker) {
                 let after_marker = sentence[pos + marker.len()..].trim();
                 if !after_marker.is_empty() {
@@ -63,11 +75,16 @@ pub fn extract_questions(transcript: &str) -> Vec<String> {
     questions
 }
 
-/// Process ASR transcript: extract questions → split queries → search → merge → dedup → sort
+/// Process an ASR transcript: extract questions, split queries, search, merge, deduplicate, sort.
+///
+/// * `index` — the pre-computed search index.
+/// * `transcript` — raw ASR output text.
+/// Returns the top `SearchConfig::default().top_n` results across all questions.
 pub fn process_transcript(index: &SearchIndex, transcript: &str) -> Vec<SearchHit> {
     eprintln!("[ASR] {}", transcript);
 
-    let questions = extract_questions(transcript);
+    let markers = storage::load_question_markers();
+    let questions = extract_questions(transcript, &markers);
     let config = SearchConfig::default();
     let mut merged: HashMap<u64, (String, f32)> = HashMap::new();
 
@@ -83,7 +100,9 @@ pub fn process_transcript(index: &SearchIndex, transcript: &str) -> Vec<SearchHi
             eprintln!("[QUERY] {}", sq);
             let hits = search(index, sq, config.threshold);
             for h in hits {
-                let entry = merged.entry(h.note_id).or_insert_with(|| (h.title.clone(), 0.0));
+                let entry = merged
+                    .entry(h.note_id)
+                    .or_insert_with(|| (h.title.clone(), 0.0));
                 if h.score > entry.1 {
                     *entry = (h.title.clone(), h.score);
                 }
@@ -93,10 +112,18 @@ pub fn process_transcript(index: &SearchIndex, transcript: &str) -> Vec<SearchHi
 
     let mut results: Vec<SearchHit> = merged
         .into_iter()
-        .map(|(note_id, (title, score))| SearchHit { note_id, title, score })
+        .map(|(note_id, (title, score))| SearchHit {
+            note_id,
+            title,
+            score,
+        })
         .collect();
 
-    results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    results.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     let results = results.into_iter().take(config.top_n).collect::<Vec<_>>();
 
     for r in &results {

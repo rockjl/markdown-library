@@ -1,13 +1,23 @@
+//! Clipboard image paste support.
+
 use crate::storage;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+/// Path to the attachments directory, created on demand.
 pub fn attachments_dir() -> PathBuf {
     let p = storage::data_dir().join("attachments");
     let _ = std::fs::create_dir_all(&p);
     p
 }
 
+/// Generate a unique filename based on the current millisecond timestamp.
+///
+/// # Parameters
+/// * `ext` - File extension (e.g. "png")
+///
+/// # Returns
+/// A filename like `img-1712345678000.png`
 fn timestamp_filename(ext: &str) -> String {
     let ts = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -16,18 +26,18 @@ fn timestamp_filename(ext: &str) -> String {
     format!("img-{}.{}", ts, ext)
 }
 
-/// Try to get an image from the clipboard and save it.
-/// Returns Ok(path) on success, Err(message) for diagnostics, or Ok(None)
-/// when the clipboard simply does not contain an image (this is the expected
-/// path when the user is pasting plain text — the caller should NOT show an
-/// error in that case).
+/// Try to get an image from the clipboard and save it to the attachments directory.
+///
+/// # Returns
+/// - `Ok(Some(path))` if an image was pasted and saved
+/// - `Ok(None)` if the clipboard does not contain an image (normal for text paste)
+/// - `Err(message)` on failure
 pub fn paste_clipboard_image() -> Result<Option<PathBuf>, String> {
     let mut cb = arboard::Clipboard::new()
         .map_err(|e| format!("clipboard open failed: {}", e))?;
 
     let img = match cb.get_image() {
         Ok(img) => img,
-        // No image present is normal (text paste); signal with Ok(None).
         Err(arboard::Error::ContentNotAvailable) => return Ok(None),
         Err(e) => return Err(format!("clipboard read failed: {}", e)),
     };
@@ -56,9 +66,13 @@ pub fn paste_clipboard_image() -> Result<Option<PathBuf>, String> {
     Ok(Some(path))
 }
 
-/// Build a markdown image link using a relative path if possible.
+/// Build a markdown image link from a file path.
+///
+/// Converts backslashes to forward slashes and encodes spaces as `%20`.
+///
+/// # Returns
+/// A string like `![](path/to/image.png)`
 pub fn markdown_link_for(path: &Path) -> String {
-    // Convert to forward slashes for cross-platform markdown links.
     let s = path
         .to_string_lossy()
         .replace('\\', "/")

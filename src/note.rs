@@ -1,28 +1,42 @@
+//! Note model with YAML-serializable fields.
+
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+/// A single note with metadata and markdown content.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Note {
+    /// Unique numeric identifier (timestamp-based)
     pub id: u64,
+    /// Note title (also used as the first `#` heading)
     pub title: String,
+    /// Raw markdown body
     pub content: String,
+    /// Optional filesystem path to the note's `.md` file
     #[serde(default)]
     pub path: Option<PathBuf>,
+    /// Whether the note has unsaved in-memory changes
     #[serde(default)]
     pub modified: bool,
+    /// Whether the first `#` heading is kept in sync with the title
     #[serde(default)]
     pub title_synced: bool,
+    /// User-assigned tags
     #[serde(default)]
     pub tags: Vec<String>,
+    /// Whether the note is favourited (starred)
     #[serde(default)]
     pub starred: bool,
+    /// Whether the note is in the trash
     #[serde(default)]
     pub trashed: bool,
+    /// Unix timestamp of the last modification
     #[serde(default = "now_ts")]
     pub updated_at: u64,
 }
 
+/// Current Unix timestamp in seconds.
 fn now_ts() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -30,6 +44,7 @@ fn now_ts() -> u64 {
         .unwrap_or(0)
 }
 
+/// Generate a unique, monotonically increasing note ID.
 fn next_id() -> u64 {
     use std::sync::atomic::{AtomicU64, Ordering};
     static COUNTER: AtomicU64 = AtomicU64::new(1);
@@ -39,6 +54,11 @@ fn next_id() -> u64 {
 }
 
 impl Note {
+    /// Create a new note with a title and content.
+    ///
+    /// # Parameters
+    /// * `title` - The note title
+    /// * `content` - The markdown body
     pub fn new(title: impl Into<String>, content: impl Into<String>) -> Self {
         Self {
             id: next_id(),
@@ -54,6 +74,7 @@ impl Note {
         }
     }
 
+    /// Return the display title, appending `*` if the note has unsaved changes.
     pub fn display_title(&self) -> String {
         if self.modified {
             format!("{}*", self.title)
@@ -62,6 +83,7 @@ impl Note {
         }
     }
 
+    /// Mark the note as recently updated by refreshing its timestamp.
     pub fn touch(&mut self) {
         self.updated_at = now_ts();
     }

@@ -1,9 +1,15 @@
+//! Persistent storage: notes, settings, search index, and question markers.
+
 use crate::note::Note;
 use crate::search::index::SearchIndex;
 use crate::settings::Settings;
 use std::fs;
 use std::path::PathBuf;
 
+/// Return the application data directory.
+///
+/// Uses `$APPDATA/markdown-library` on Windows, `.markdown-library` on Linux.
+/// The directory is created if it does not exist.
 pub fn data_dir() -> PathBuf {
     if let Ok(appdata) = std::env::var("APPDATA") {
         let p = PathBuf::from(appdata).join("markdown-library");
@@ -27,6 +33,12 @@ fn index_file() -> PathBuf {
     data_dir().join("index.json")
 }
 
+/// Load all notes from the content directory.
+///
+/// Each `.md` file is parsed: if it contains YAML front matter the note metadata
+/// is deserialised from it; otherwise the file's content is used as-is with a
+/// default `Note` struct.  Returns an empty vec if the content directory is
+/// missing or empty.
 pub fn load_notes() -> Vec<Note> {
     let content = content_dir();
     if !content.exists() || !content.is_dir() {
@@ -46,7 +58,6 @@ pub fn load_notes() -> Vec<Note> {
                             continue;
                         }
                     }
-                    // Fallback: name-based id
                     let mut n = Note::default();
                     if let Some(fname) = p.file_stem().and_then(|s| s.to_str()) {
                         if let Ok(id) = fname.parse::<u64>() {
@@ -63,6 +74,9 @@ pub fn load_notes() -> Vec<Note> {
     notes
 }
 
+/// Load the pre-computed search index from disk.
+///
+/// Returns `None` if the index file does not exist or cannot be parsed.
 pub fn load_index() -> Option<SearchIndex> {
     let path = index_file();
     if !path.exists() {
@@ -71,6 +85,7 @@ pub fn load_index() -> Option<SearchIndex> {
     fs::read_to_string(&path).ok().and_then(|s| SearchIndex::from_json(&s).ok())
 }
 
+/// Serialise the search index to disk as JSON.
 pub fn save_index(index: &SearchIndex) {
     let path = index_file();
     if let Ok(json) = index.to_json() {
@@ -78,6 +93,9 @@ pub fn save_index(index: &SearchIndex) {
     }
 }
 
+/// Persist all notes to the content directory as `.md` files with YAML front matter.
+///
+/// Each note is written atomically via a `.md.tmp` temporary file followed by a rename.
 pub fn save_notes(notes: &[Note]) {
     let content = content_dir();
     let _ = fs::create_dir_all(&content);
@@ -105,15 +123,10 @@ fn split_front_matter(s: &str) -> Option<(String, &str)> {
     if !s.starts_with("---") {
         return None;
     }
-    // Split on the terminating marker "\n---\n"
     let mut sp = s.splitn(2, "\n---\n");
     if let Some(first) = sp.next() {
         if let Some(rest) = sp.next() {
             if let Some(meta) = first.strip_prefix("---\n") {
-                // If the saved file used an extra blank line between the closing
-                // front-matter marker and the body (common), strip a single
-                // leading '\n' so we don't accumulate blank lines on repeated
-                // load/save cycles.
                 let rest = if rest.starts_with('\n') { &rest[1..] } else { rest };
                 return Some((meta.to_string(), rest));
             }
@@ -149,6 +162,9 @@ mod tests {
     }
 }
 
+/// Load application settings from `settings.json`.
+///
+/// Returns `Settings::default()` if the file is missing or corrupt.
 pub fn load_settings() -> Settings {
     let path = settings_file();
     if !path.exists() {
@@ -160,6 +176,7 @@ pub fn load_settings() -> Settings {
         .unwrap_or_default()
 }
 
+/// Persist application settings to `settings.json`.
 pub fn save_settings(settings: &Settings) {
     let path = settings_file();
     if let Ok(json) = serde_json::to_string_pretty(settings) {
@@ -171,6 +188,9 @@ fn search_history_file() -> PathBuf {
     data_dir().join("search_history.json")
 }
 
+/// Load saved search history from `search_history.json`.
+///
+/// Returns an empty vec if the file is missing or corrupt.
 pub fn load_search_history() -> Vec<String> {
     let path = search_history_file();
     if !path.exists() {
@@ -182,6 +202,7 @@ pub fn load_search_history() -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// Persist search history to `search_history.json`.
 pub fn save_search_history(history: &[String]) {
     let path = search_history_file();
     if let Ok(json) = serde_json::to_string_pretty(history) {
@@ -189,4 +210,49 @@ pub fn save_search_history(history: &[String]) {
     }
 }
 
+fn question_markers_file() -> PathBuf {
+    data_dir().join("question_markers.json")
+}
 
+/// Built-in default question markers for voice search.
+pub fn default_question_markers() -> Vec<String> {
+    [
+        "what is", "what are", "why", "how", "when", "where",
+        "explain", "could you explain", "can you explain", "would you explain", "please explain",
+        "describe", "can you describe", "could you describe", "would you describe",
+        "tell me about", "could you tell me about", "can you tell me about",
+        "walk me through", "could you walk me through", "can you walk me through",
+        "why did you choose", "why did you pick", "why do you use", "why are you using",
+        "what made you choose", "what makes you choose",
+        "difference between", "what is the difference between",
+        "compare", "compare with", "compare to", "versus", "vs",
+        "how does", "how would you", "how do you", "how did you", "how have you",
+        "what happens when", "what would happen if",
+        "how would you handle", "how do you handle",
+        "how would you design", "design a", "design an", "how would you implement",
+        "have you ever", "can you share", "could you share", "tell me about a time",
+        "in your project", "in your experience", "in your previous project",
+        "how does solana", "how does anchor", "how does account", "how does pda work",
+        "how does ownership", "how does borrowing", "how does lifetime", "how does trait",
+    ]
+    .into_iter()
+    .map(|s| s.to_string())
+    .collect()
+}
+
+/// Load question markers from disk, falling back to built-in defaults.
+pub fn load_question_markers() -> Vec<String> {
+    let path = question_markers_file();
+    fs::read_to_string(&path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_else(default_question_markers)
+}
+
+/// Save question markers to disk.
+pub fn save_question_markers(markers: &[String]) {
+    let path = question_markers_file();
+    if let Ok(json) = serde_json::to_string_pretty(markers) {
+        let _ = fs::write(path, json);
+    }
+}

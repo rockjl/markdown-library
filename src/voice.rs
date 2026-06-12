@@ -1,9 +1,9 @@
+//! Voice engine: Push-To-Talk recording via Xunfei ASR WebSocket API.
+
 use base64::Engine;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use futures_util::stream::StreamExt;
 use futures_util::SinkExt;
-use std::fs::OpenOptions;
-use std::io::Write;
 use std::collections::VecDeque;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -12,56 +12,23 @@ use std::sync::{
 use std::thread;
 use std::time::Duration;
 
-// ---- 调试日志输出（仅写入 voice_debug.log，无 stdout） ----
-fn log_msg(msg: String) {
-    use std::sync::Mutex;
-    static FILE: Mutex<Option<std::fs::File>> = Mutex::new(None);
-    if let Ok(mut guard) = FILE.lock() {
-        if guard.is_none() {
-            *guard = OpenOptions::new()
-                .create(true)
-                .write(true)
-                .truncate(true)
-                .open("voice_debug.log")
-                .ok();
-        }
-        if let Some(ref mut f) = *guard {
-            let _ = writeln!(f, "{}", msg);
-            let _ = f.flush();
-        }
-    }
-}
+use crate::debug_log::log_msg;
 
-fn timestamp() -> String {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap();
-    let secs = now.as_secs();
-    let millis = now.subsec_millis();
-    let h = (secs / 3600) % 24;
-    let m = (secs / 60) % 60;
-    let s = secs % 60;
-    format!("{:02}:{:02}:{:02}.{:03}", h, m, s, millis)
-}
-// ---- end ----
-
-/// 线程安全的转写结果队列，供 SEND/RECV 双任务与 UI 轮询线程共享
 type TranscriptQueue = Arc<Mutex<VecDeque<String>>>;
 
-/// 语音引擎：连接讯飞 RTASR WebSocket，采集麦克风音频，
-/// 发送音频流并接收转写结果，通过 poll() 方法供 UI 层轮询。
+/// Voice engine: connects to Xunfei RTASR WebSocket, captures mic audio,
+/// sends audio stream, and receives transcription results via `poll()`.
 pub struct VoiceEngine {
+    /// Thread-safe queue of transcribed text fragments received from the ASR WebSocket.
     queue: TranscriptQueue,
+    /// Flag indicating whether the engine should keep running; set to `false` to stop.
     running: Arc<AtomicBool>,
 }
 
 impl VoiceEngine {
-    /// 启动语音引擎
-    ///
-    /// 创建一个新的 OS 线程，内部运行 tokio 运行时，
-    /// 依次完成：鉴权 → WebSocket 连接 → 麦克风初始化 → 双任务收发音频。
+    /// Start the voice engine in a new OS thread with its own tokio runtime.
     pub fn start(appid: &str, secret_key: &str) -> Self {
-        log_msg(format!("[{}] VoiceEngine::start()", timestamp()));
+        log_msg("VoiceEngine::start()");
         let queue: TranscriptQueue = Arc::new(Mutex::new(VecDeque::new()));
         let q2 = queue.clone();
         let running = Arc::new(AtomicBool::new(true));
@@ -80,16 +47,14 @@ impl VoiceEngine {
         Self { queue, running }
     }
 
-    /// 停止语音引擎
+    /// Stop the voice engine.
     pub fn stop(&self) {
-        log_msg(format!("[{}] VoiceEngine::stop()", timestamp()));
+        log_msg("VoiceEngine::stop()");
         self.running.store(false, Ordering::Relaxed);
     }
 
-    /// 轮询转写结果（线程安全，非阻塞）
-    ///
-    /// 每次调用弹出最早的一条转写文本。
-    /// 如果 Mutex 中毒，则自动恢复并继续返回数据。
+    /// Poll the transcript queue (non-blocking, thread-safe).
+    /// Returns the earliest pending transcript if available.
     pub fn poll(&self) -> Option<String> {
         let mut guard = match self.queue.lock() {
             Ok(g) => g,
@@ -98,20 +63,19 @@ impl VoiceEngine {
         guard.pop_front()
     }
 
-    /// 检查引擎是否运行中
+    /// Check whether the engine is still running.
     pub fn is_running(&self) -> bool {
         self.running.load(Ordering::Relaxed)
     }
 }
 
-/// 异步主循环：鉴权 → WebSocket 连接 → 麦克风 → 双任务发送/接收
+/// Async main loop: authenticate → WebSocket → mic → dual send/receive tasks.
 async fn run_loop(
     appid: String,
     secret_key: String,
     queue: TranscriptQueue,
     running: Arc<AtomicBool>,
 ) {
-    // ---- 鉴权 ----
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -124,7 +88,6 @@ async fn run_loop(
         appid, ts, encoded
     );
 
-    // ---- WebSocket 连接 ----
     use tokio_tungstenite::tungstenite::client::IntoClientRequest;
     let mut request = url_str.into_client_request().unwrap();
     request.headers_mut().insert(
@@ -135,29 +98,28 @@ async fn run_loop(
     );
     let (ws, _) = match tokio_tungstenite::connect_async(request).await {
         Ok(r) => {
-            log_msg(format!("[{}] WS connected", timestamp()));
+            log_msg("WS connected");
             r
         }
         Err(e) => {
-            log_msg(format!("[{}] WS connect FAILED: {}", timestamp(), e));
+            log_msg(&format!("WS connect FAILED: {}", e));
             return;
         }
     };
     let (mut write, mut read) = ws.split();
 
-    // ---- 麦克风 ----
     let host = cpal::default_host();
     let device = match host.default_input_device() {
         Some(d) => d,
         None => {
-            log_msg(format!("[{}] No mic found", timestamp()));
+            log_msg("No mic found");
             return;
         }
     };
     let config = match device.default_input_config() {
         Ok(c) => c,
         Err(e) => {
-            log_msg(format!("[{}] Mic config FAILED: {}", timestamp(), e));
+            log_msg(&format!("Mic config FAILED: {}", e));
             return;
         }
     };
@@ -169,7 +131,7 @@ async fn run_loop(
 
     use cpal::SampleFormat;
     let err_fn = move |e| {
-        log_msg(format!("[{}] Mic stream error: {}", timestamp(), e));
+        log_msg(&format!("Mic stream error: {}", e));
     };
     let stream: cpal::Stream = match config.sample_format() {
         SampleFormat::F32 => device
@@ -210,24 +172,22 @@ async fn run_loop(
             )
             .unwrap(),
         _ => {
-            log_msg(format!("[{}] Unsupported audio format", timestamp()));
+            log_msg("Unsupported audio format");
             return;
         }
     };
     if let Err(e) = stream.play() {
-        log_msg(format!("[{}] Stream play FAILED: {}", timestamp(), e));
+        log_msg(&format!("Stream play FAILED: {}", e));
         return;
     }
-    log_msg(format!("[{}] Mic started ({}Hz, {}ch)", timestamp(), dev_rate, dev_channels));
+    log_msg(&format!("Mic started ({}Hz, {}ch)", dev_rate, dev_channels));
 
-    // ---- 双任务：发送音频 + 接收转写 ----
     let ratio = dev_rate as f64 / target_rate as f64;
     let chunk_target = 640usize;
 
     let (stop_tx, stop_rx) = tokio::sync::watch::channel(());
     let q3 = queue.clone();
 
-    // ===== 发送任务：降采样麦克风音频 → 每 40ms 向 WS 发送 640 个样本 =====
     let mut stop_rx_send = stop_rx.clone();
     let send_handle = tokio::spawn(async move {
         let mut sample_buf: Vec<i16> = Vec::new();
@@ -283,7 +243,6 @@ async fn run_loop(
         }
     });
 
-    // ===== 接收任务：读取 WS 响应 → 提取文本 → 推入结果队列 =====
     let mut stop_rx_recv = stop_rx.clone();
     let recv_handle = tokio::spawn(async move {
         loop {
@@ -330,21 +289,22 @@ async fn run_loop(
         }
     });
 
-    // ===== 等待 UI 层发出停止信号 =====
     while running.load(Ordering::Relaxed) {
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
-    log_msg(format!("[{}] Stopping, waiting for tasks...", timestamp()));
+    log_msg("Stopping, waiting for tasks...");
 
     drop(stop_tx);
     let _ = send_handle.await;
     let _ = recv_handle.await;
-    log_msg(format!("[{}] Voice engine stopped", timestamp()));
+    log_msg("Voice engine stopped");
 }
 
-/// 构建讯飞鉴权签名
+/// Build Xunfei authentication signature: MD5(appid + ts) → HMAC-SHA1 → Base64.
 ///
-/// 流程：MD5(appid + ts) → HMAC-SHA1(scret_key, md5_hex) → Base64
+/// * `appid` — Xunfei application ID.
+/// * `ts` — current Unix epoch as a decimal string.
+/// * `secret_key` — Xunfei API secret key.
 fn build_signa(appid: &str, ts: &str, secret_key: &str) -> String {
     use hmac::Mac;
     use sha1::digest::Digest;
@@ -360,9 +320,10 @@ fn build_signa(appid: &str, ts: &str, secret_key: &str) -> String {
     base64::engine::general_purpose::STANDARD.encode(code_bytes)
 }
 
-/// 从讯飞 JSON 响应中提取转写文本
+/// Extract the transcribed text from a Xunfei RTASR JSON response.
 ///
-/// 响应结构：action="result" → data → cn → st → rt[] → ws[] → cw[] → w
+/// Returns `None` if the message is not a `"result"` action or if the expected
+/// nested fields (`data.cn.st.rt[].ws[].cw[].w`) are missing.
 fn extract_text(json: &str) -> Option<String> {
     let v: serde_json::Value = serde_json::from_str(json).ok()?;
     if v.get("action")?.as_str()? != "result" {

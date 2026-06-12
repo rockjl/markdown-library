@@ -8,7 +8,7 @@ and a Library/Interview dual-mode sidebar.
 
 - **Three-pane layout**: sidebar note list, source editor, live preview
 - **Dual sidebar modes**: Library (tag-grouped browsing, edit on click) and Interview (semantic search first, preview on click)
-- **Voice search (F12)**: Push-To-Talk recording via Xunfei ASR → `extract_questions()` → semantic search → ranked results in sidebar
+- **Voice search (F12)**: Push-To-Talk recording via Xunfei ASR → `extract_questions()` → semantic search → ranked results in sidebar. Question trigger phrases (e.g. "explain", "how does", "what is the difference between") are loaded from `question_markers.json` — edit the file to customize without recompiling
 - **Sidebar smart search**: prefix/substring match (single word) or semantic jaccard+LCS (multi-word queries)
 - **Persistent search index**: `index.json` stores pre-computed tokens; rebuilt on every save — fast startup
 - **Light / Dark theme** with persistent settings
@@ -52,16 +52,19 @@ cargo build --release
 
 ## Data location
 
-All data lives in `.markdown-library/` (local to the working directory, or `$APPDATA/markdown-library/` on Windows):
+All data lives in `.markdown-library/` (local to the working directory, or `$APPDATA/markdown-library/` on Windows). This directory is **not committed to Git** — create it manually or let the app create it on first run.
 
 ```
 .markdown-library/
-├── content/           # Notes as <id>.md with YAML front-matter (authoritative store)
-├── index.json         # Pre-computed search tokens (built on save)
-├── settings.json      # UI theme, font, sidebar batch
+├── content/                # Notes as <id>.md with YAML front-matter (authoritative store)
+├── index.json              # Pre-computed search tokens (built on save)
+├── settings.json           # UI theme, font, sidebar batch
 ├── search_history.json
-└── attachments/       # Pasted images
+├── question_markers.json   # 👈 Voice search trigger phrases (edit to customize, no recompile needed)
+└── attachments/            # Pasted images
 ```
+
+> `question_markers.json` contains the question-pattern list used by voice search's `extract_questions()`. If missing, the app falls back to a built-in default set. To customize, copy the default list from `storage.rs::default_question_markers()` or just run the app once — it creates the file automatically.
 
 ## Keyboard shortcuts
 

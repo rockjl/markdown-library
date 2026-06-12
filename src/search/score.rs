@@ -1,5 +1,11 @@
+//! Scoring functions: Jaccard similarity, LCS ratio, and weighted note score.
+
 use crate::search::index::IndexedNote;
 
+/// Jaccard similarity coefficient between two token slices.
+///
+/// Returns 1.0 when both are empty, 0.0 when one is empty, and the intersection/union
+/// ratio otherwise.
 pub fn jaccard(a: &[String], b: &[String]) -> f32 {
     if a.is_empty() && b.is_empty() {
         return 1.0;
@@ -15,6 +21,9 @@ pub fn jaccard(a: &[String], b: &[String]) -> f32 {
     intersection / union
 }
 
+/// Longest-common-subsequence ratio between two token slices.
+///
+/// Returns LCS length divided by the length of the longer slice.
 pub fn lcs_ratio(a: &[String], b: &[String]) -> f32 {
     if a.is_empty() && b.is_empty() {
         return 1.0;
@@ -46,10 +55,12 @@ fn lcs_length(a: &[String], b: &[String]) -> usize {
     dp[m][n]
 }
 
+/// Combined similarity: 70% Jaccard + 30% LCS ratio.
 pub fn similarity(a: &[String], b: &[String]) -> f32 {
     0.7 * jaccard(a, b) + 0.3 * lcs_ratio(a, b)
 }
 
+/// Weighted note score: 60% title, 35% tags, 5% content.
 pub fn note_score(query: &[String], note: &IndexedNote) -> f32 {
     let title_score = similarity(query, &note.title_tokens);
     let tag_score = similarity(query, &note.tag_tokens);

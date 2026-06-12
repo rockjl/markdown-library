@@ -1,32 +1,49 @@
+//! Find & replace state and matching logic for the editor.
+
+/// State for the find/replace UI overlay.
 #[derive(Default, Clone)]
 pub struct FindReplaceState {
+    /// Whether the find bar is visible
     pub visible: bool,
+    /// Whether to show the replace input row
     pub show_replace: bool,
+    /// Current search query text
     pub query: String,
+    /// Replacement text
     pub replace_with: String,
+    /// Whether matching is case-sensitive
     pub case_sensitive: bool,
+    /// Index of the currently highlighted match
     pub current_match: usize,
+    /// If `true`, the query input should gain focus on next frame
     pub focus_query: bool,
 }
 
 impl FindReplaceState {
+    /// Open the find bar (without replace row).
     pub fn open_find(&mut self) {
         self.visible = true;
         self.show_replace = false;
         self.focus_query = true;
     }
 
+    /// Open the find bar with the replace row visible.
     pub fn open_replace(&mut self) {
         self.visible = true;
         self.show_replace = true;
         self.focus_query = true;
     }
 
+    /// Close the find bar.
     pub fn close(&mut self) {
         self.visible = false;
     }
 }
 
+/// Find all byte-offset ranges of `query` in `text`.
+///
+/// # Returns
+/// A vector of `(start_byte, end_byte)` pairs for each match.
 pub fn find_all(text: &str, query: &str, case_sensitive: bool) -> Vec<(usize, usize)> {
     if query.is_empty() {
         return Vec::new();
@@ -34,17 +51,13 @@ pub fn find_all(text: &str, query: &str, case_sensitive: bool) -> Vec<(usize, us
     if case_sensitive {
         find_all_inner(text, query)
     } else {
-        // For case-insensitive matching we lowercase both sides. The returned byte
-        // offsets refer to the lowercased text, which lines up with the original for
-        // ASCII (the common case for case folding); for non-ASCII text the offsets
-        // are an approximation good enough for matching, since most CJK characters
-        // don't case-fold.
         let hay = text.to_lowercase();
         let needle = query.to_lowercase();
         find_all_inner(&hay, &needle)
     }
 }
 
+/// Internal substring search returning byte-offset ranges.
 fn find_all_inner(hay: &str, needle: &str) -> Vec<(usize, usize)> {
     let mut out = Vec::new();
     let mut start = 0usize;
@@ -56,6 +69,10 @@ fn find_all_inner(hay: &str, needle: &str) -> Vec<(usize, usize)> {
     out
 }
 
+/// Replace all occurrences of `query` in `text` with `replacement`.
+///
+/// # Returns
+/// A tuple of `(new_text, replacement_count)`.
 pub fn replace_all(text: &str, query: &str, replacement: &str, case_sensitive: bool) -> (String, usize) {
     if query.is_empty() {
         return (text.to_string(), 0);
@@ -64,7 +81,6 @@ pub fn replace_all(text: &str, query: &str, replacement: &str, case_sensitive: b
         let count = text.matches(query).count();
         (text.replace(query, replacement), count)
     } else {
-        // Manual case-insensitive replacement preserving original bytes outside matches.
         let hay = text.to_lowercase();
         let needle = query.to_lowercase();
         let matches = find_all_inner(&hay, &needle);

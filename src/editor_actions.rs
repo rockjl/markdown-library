@@ -1,26 +1,50 @@
-// Markdown formatting actions applied to the text buffer.
-// Operates on character indices (egui CCursor uses char positions).
+//! Markdown formatting actions applied to the text buffer.
 
+/// Supported markdown formatting actions.
 #[derive(Clone, Copy, Debug)]
 pub enum EditorAction {
-    /// Wrap selection with prefix/suffix (e.g. **bold**). Toggles if already wrapped.
-    Wrap { prefix: &'static str, suffix: &'static str },
+    /// Wrap the selection with a prefix and suffix (e.g. `**bold**`). Toggles if already wrapped.
+    Wrap {
+        /// Prefix string (e.g. `**`)
+        prefix: &'static str,
+        /// Suffix string (e.g. `**`)
+        suffix: &'static str,
+    },
     /// Prepend a string to each selected line (e.g. `- `, `> `, `# `). Toggles if already present.
     LinePrefix(&'static str),
-    /// Insert raw text at cursor (replacing selection).
+    /// Insert raw text at the cursor, replacing the current selection.
     Insert(&'static str),
-    /// Insert a code block fence with optional language.
+    /// Insert a fenced code block with an optional language identifier.
     CodeBlock(&'static str),
-    /// Insert a table skeleton at the cursor (on its own line).
-    Table { rows: usize, cols: usize },
+    /// Insert an empty table skeleton at the cursor.
+    Table {
+        /// Number of body rows
+        rows: usize,
+        /// Number of columns
+        cols: usize,
+    },
 }
 
+/// Result of applying an editor action.
 pub struct ActionResult {
+    /// The updated note content
     pub new_content: String,
-    pub new_cursor_start: usize, // char index
-    pub new_cursor_end: usize,   // char index
+    /// New cursor position (character index) after the action
+    pub new_cursor_start: usize,
+    /// New selection end (character index) after the action
+    pub new_cursor_end: usize,
 }
 
+/// Apply an editor action to the given content and selection.
+///
+/// # Parameters
+/// * `action` - The formatting action to apply
+/// * `content` - The current note text
+/// * `sel_start_char` - Selection start in character indices
+/// * `sel_end_char` - Selection end in character indices
+///
+/// # Returns
+/// An `ActionResult` with the modified content and updated cursor positions.
 pub fn apply(
     action: EditorAction,
     content: &str,
@@ -46,6 +70,7 @@ pub fn apply(
     }
 }
 
+/// Convert a character index to a byte index in the given string.
 fn char_to_byte(s: &str, char_idx: usize) -> usize {
     s.char_indices()
         .nth(char_idx)
@@ -53,10 +78,12 @@ fn char_to_byte(s: &str, char_idx: usize) -> usize {
         .unwrap_or(s.len())
 }
 
+/// Count characters in a string (Unicode-aware).
 fn char_count(s: &str) -> usize {
     s.chars().count()
 }
 
+/// Wrap the selected text with prefix/suffix, toggling off if already wrapped.
 fn wrap_selection(
     content: &str,
     start: usize,
@@ -73,7 +100,6 @@ fn wrap_selection(
     let p_chars = char_count(prefix);
     let s_chars = char_count(suffix);
 
-    // Toggle: if selection is already surrounded by prefix/suffix in the buffer, remove them.
     let already_wrapped_inside = selected.starts_with(prefix) && selected.ends_with(suffix)
         && char_count(selected) >= p_chars + s_chars;
     let already_wrapped_outside = before.ends_with(prefix) && after.starts_with(suffix);
@@ -99,7 +125,6 @@ fn wrap_selection(
         };
     }
 
-    // Normal wrap
     let new_content = format!("{}{}{}{}{}", before, prefix, selected, suffix, after);
     let new_start = start + p_chars;
     let new_end = end + p_chars;
@@ -110,6 +135,7 @@ fn wrap_selection(
     }
 }
 
+/// Prepend a prefix string to each line in the selection, toggling off if all lines already have it.
 fn line_prefix(
     content: &str,
     start: usize,
@@ -119,9 +145,7 @@ fn line_prefix(
     let b_start = char_to_byte(content, start);
     let b_end = char_to_byte(content, end);
 
-    // Find the start of the line containing b_start
     let line_start = content[..b_start].rfind('\n').map(|i| i + 1).unwrap_or(0);
-    // Find the end of the line containing b_end (exclusive)
     let line_end = content[b_end..]
         .find('\n')
         .map(|i| b_end + i)
@@ -131,7 +155,6 @@ fn line_prefix(
     let region = &content[line_start..line_end];
     let after = &content[line_end..];
 
-    // Check whether ALL lines already start with prefix → toggle off
     let all_have = region
         .split('\n')
         .all(|l| l.starts_with(prefix) || l.is_empty());
@@ -156,7 +179,6 @@ fn line_prefix(
                 new_region.push_str(line);
             }
         } else {
-            // Numbered list special-case: replace 1./2./3. counting up
             if prefix == "1. " {
                 new_region.push_str(&format!("{}. {}", i + 1, line));
                 let added = char_count(&format!("{}. ", i + 1));
@@ -164,9 +186,6 @@ fn line_prefix(
                     removed_first_line = 0;
                 }
                 added_total += added as i64;
-                if i == 0 {
-                    // first line shifts cursor by `added`
-                }
                 continue;
             }
             new_region.push_str(prefix);
@@ -197,6 +216,7 @@ fn line_prefix(
     }
 }
 
+/// Insert text at the cursor, replacing the current selection.
 fn insert_text(content: &str, start: usize, end: usize, text: &str) -> ActionResult {
     let b_start = char_to_byte(content, start);
     let b_end = char_to_byte(content, end);
@@ -211,6 +231,7 @@ fn insert_text(content: &str, start: usize, end: usize, text: &str) -> ActionRes
     }
 }
 
+/// Wrap the selection with block-level open/close strings (e.g. code fences).
 fn wrap_with_blocks(
     content: &str,
     start: usize,
@@ -237,7 +258,16 @@ fn wrap_with_blocks(
     }
 }
 
-/// Move current line (or selected lines) up or down. Returns updated content and selection.
+/// Move the current line (or selected lines) up or down.
+///
+/// # Parameters
+/// * `content` - The current note text
+/// * `sel_start` - Selection start in character indices
+/// * `sel_end` - Selection end in character indices
+/// * `up` - `true` to move up, `false` to move down
+///
+/// # Returns
+/// `Some(ActionResult)` if the move succeeded, `None` if already at the boundary.
 pub fn move_lines(content: &str, sel_start: usize, sel_end: usize, up: bool) -> Option<ActionResult> {
     let (start, end) = if sel_start <= sel_end {
         (sel_start, sel_end)
@@ -311,21 +341,19 @@ pub fn move_lines(content: &str, sel_start: usize, sel_end: usize, up: bool) -> 
     }
 }
 
+/// Insert a markdown table skeleton at the cursor.
 fn insert_table(content: &str, start: usize, end: usize, rows: usize, cols: usize) -> ActionResult {
     let mut table = String::from("\n");
-    // Header
     table.push('|');
     for c in 0..cols {
         table.push_str(&format!(" Header{} |", c + 1));
     }
     table.push('\n');
-    // Separator
     table.push('|');
     for _ in 0..cols {
         table.push_str("--------|");
     }
     table.push('\n');
-    // Body rows
     for _ in 0..rows {
         table.push('|');
         for _ in 0..cols {
@@ -346,7 +374,6 @@ mod tests {
         let content = "hello";
         let res = apply(EditorAction::Wrap { prefix: "**", suffix: "**" }, content, 0, 5);
         assert_eq!(res.new_content, "**hello**");
-        // toggle off
         let res2 = apply(EditorAction::Wrap { prefix: "**", suffix: "**" }, &res.new_content, 0, res.new_content.chars().count());
         assert_eq!(res2.new_content, "hello");
     }
@@ -354,11 +381,9 @@ mod tests {
     #[test]
     fn test_line_prefix_toggle() {
         let content = "a\nb\n";
-        // apply prefix to all
         let res = apply(EditorAction::LinePrefix("- "), content, 0, content.len());
         assert!(res.new_content.contains("- a"));
         assert!(res.new_content.contains("- b"));
-        // toggle off
         let res2 = apply(EditorAction::LinePrefix("- "), &res.new_content, 0, res.new_content.chars().count());
         assert_eq!(res2.new_content, content);
     }
@@ -366,7 +391,6 @@ mod tests {
     #[test]
     fn test_move_lines_up_down() {
         let content = "one\ntwo\nthree\n";
-        // move 'two' up: select middle line
         if let Some(r) = move_lines(content, 4, 7, true) {
             assert!(r.new_content.contains("two\none" ) || r.new_content.contains("two\none"));
         } else {

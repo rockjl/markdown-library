@@ -1,5 +1,15 @@
+//! HTML export from Markdown using `pulldown_cmark`.
+
 use pulldown_cmark::{html, Options, Parser};
 
+/// Convert markdown text to a full HTML document with embedded CSS.
+///
+/// # Parameters
+/// * `markdown` - The raw markdown content
+/// * `title` - Document title (used in `<title>` tag)
+///
+/// # Returns
+/// A complete HTML page string
 pub fn markdown_to_html(markdown: &str, title: &str) -> String {
     let mut options = Options::empty();
     options.insert(Options::ENABLE_TABLES);
@@ -11,10 +21,6 @@ pub fn markdown_to_html(markdown: &str, title: &str) -> String {
     let mut body = String::new();
     html::push_html(&mut body, parser);
 
-    // Post-process: inject id="..." attributes on <hN> headings so that
-    // intra-document links like [foo](#foo) resolve. We use the plain
-    // text content of the heading as the anchor id, matching what the
-    // user would write in the markdown link.
     let body = add_heading_ids(&body);
 
     let css = include_str!("../assets/export.css");
@@ -42,6 +48,7 @@ pub fn markdown_to_html(markdown: &str, title: &str) -> String {
     )
 }
 
+/// Escape HTML special characters in a string.
 fn html_escape(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")
@@ -49,17 +56,13 @@ fn html_escape(s: &str) -> String {
         .replace('"', "&quot;")
 }
 
-/// Walks the rendered HTML looking for `<h1>` through `<h6>` opening tags and
-/// rewrites them with an `id="<heading text>"` attribute, where the id is the
-/// plain-text content of the heading (HTML tags inside the heading, e.g.
-/// from `**bold**`, are stripped for the id). Existing tags that already
-/// have attributes (e.g. `<h1 class="x">`) are left alone.
+/// Walk rendered HTML and inject `id="..."` attributes on `<hN>` headings
+/// so that intra-document anchor links resolve.
 fn add_heading_ids(html: &str) -> String {
     let bytes = html.as_bytes();
     let mut out = String::with_capacity(html.len() + 64);
     let mut i = 0;
     while i < bytes.len() {
-        // Look for "<hN>" where N is 1..=6
         if i + 3 < bytes.len()
             && bytes[i] == b'<'
             && bytes[i + 1] == b'h'
@@ -81,8 +84,6 @@ fn add_heading_ids(html: &str) -> String {
                 continue;
             }
         }
-        // Append the next UTF-8 character (safe because we're not inside a
-        // multibyte sequence — we only branched on ASCII bytes above).
         let ch_start = i;
         let mut ch_end = i + 1;
         while ch_end < bytes.len() && (bytes[ch_end] & 0xC0) == 0x80 {
@@ -94,6 +95,7 @@ fn add_heading_ids(html: &str) -> String {
     out
 }
 
+/// Strip HTML tags from a string, keeping only the text content.
 fn strip_html_tags(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut in_tag = false;

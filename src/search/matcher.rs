@@ -1,15 +1,24 @@
+//! Text search against the search index.
+
 use crate::search::index::SearchIndex;
 use crate::search::normalize;
 use crate::search::score;
 
+/// A single search result.
 pub struct SearchHit {
+    /// Identifier of the matched note.
     pub note_id: u64,
+    /// Display title of the matched note.
     pub title: String,
+    /// Similarity score between 0.0 and 1.0.
     pub score: f32,
 }
 
+/// Configuration tweaks for the search algorithm.
 pub struct SearchConfig {
+    /// Minimum similarity score (0.0–1.0) to include a result.
     pub threshold: f32,
+    /// Maximum number of results to return.
     pub top_n: usize,
 }
 
@@ -22,6 +31,12 @@ impl Default for SearchConfig {
     }
 }
 
+/// Search the index for notes matching the query.
+///
+/// * `index` — the pre-computed search index.
+/// * `query` — raw user query; tokenised internally.
+/// * `threshold` — minimum similarity score to include a result.
+/// Returns results sorted by descending score.
 pub fn search(index: &SearchIndex, query: &str, threshold: f32) -> Vec<SearchHit> {
     let query_tokens = normalize::normalize(query);
     if query_tokens.is_empty() {
