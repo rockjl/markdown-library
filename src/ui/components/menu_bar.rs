@@ -1,6 +1,6 @@
 use egui::RichText;
 
-use crate::app::MarkdownApp;
+use crate::ui::app::MarkdownApp;
 use crate::theme;
 use crate::settings::{ThemeMode, ViewMode};
 use crate::editor_actions::EditorAction;

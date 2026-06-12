@@ -2,7 +2,7 @@
 
 ## Entrypoint & build
 
-- Single crate (not a workspace), binary at `src/main.rs` → `MarkdownApp` in `src/ui/app.rs` (re-exported via `src/app.rs`)
+- Single crate (not a workspace), binary at `src/main.rs` → `MarkdownApp` in `src/ui/app.rs`
 - `edition = "2024"` — requires Rust **≥ 1.85** or nightly
 - Dev: `cargo check` (fastest feedback) / `cargo build` / `cargo test` (31 unit tests)
 - Release: `cargo build --release` (LTO enabled, single static binary)

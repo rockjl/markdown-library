@@ -1,4 +1,4 @@
-use crate::app::MarkdownApp;
+use crate::ui::app::MarkdownApp;
 use egui::{RichText, ScrollArea, Ui};
 use crate::ui::constants::EDITOR_ID;
 

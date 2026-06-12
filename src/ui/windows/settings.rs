@@ -1,5 +1,5 @@
-use crate::app::load_user_font;
-use crate::app::MarkdownApp;
+use crate::ui::app::load_user_font;
+use crate::ui::app::MarkdownApp;
 use crate::settings::{FontChoice, ThemeMode};
 use crate::storage;
 use crate::theme;

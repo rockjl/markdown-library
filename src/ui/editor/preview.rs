@@ -1,6 +1,6 @@
 // Copyright (c) 2025 markdown-library
 
-use crate::app::MarkdownApp;
+use crate::ui::app::MarkdownApp;
 use crate::settings::ViewMode;
 use crate::wikilinks;
 use egui::{RichText, ScrollArea, Ui};

@@ -1,4 +1,4 @@
-use crate::app::MarkdownApp;
+use crate::ui::app::MarkdownApp;
 use crate::wikilinks;
 use egui::{RichText, ScrollArea, Ui};
 use crate::ui::types::NavTarget;

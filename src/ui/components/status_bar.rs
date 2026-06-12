@@ -1,6 +1,6 @@
 use egui::RichText;
 
-use crate::app::MarkdownApp;
+use crate::ui::app::MarkdownApp;
 
 impl MarkdownApp {
     pub fn draw_status_bar(&mut self, ctx: &egui::Context) {

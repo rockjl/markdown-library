@@ -89,7 +89,6 @@ All data lives in `.markdown-library/` (local to the working directory, or `$APP
 ```
 src/
 ├── main.rs                  — Binary entrypoint
-├── app.rs                   — Re-exports MarkdownApp from ui::app
 ├── debug_log.rs             — Shared logging utility (voice_debug.log)
 ├── asr/mod.rs               — TranscriptProvider trait
 ├── voice.rs                 — VoiceEngine (Xunfei WebSocket)

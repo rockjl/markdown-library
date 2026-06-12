@@ -1,4 +1,4 @@
-use crate::app::MarkdownApp;
+use crate::ui::app::MarkdownApp;
 use crate::note::Note;
 use crate::wikilinks;
 use egui::{Align2, Color32, FontFamily, FontId, Margin, RichText, Sense, TextEdit};

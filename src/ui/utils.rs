@@ -1,5 +1,5 @@
 use crate::theme::{self, ThemeColors};
-use crate::app::MarkdownApp;
+use crate::ui::app::MarkdownApp;
 use egui::{Color32, Ui};
 use std::time::SystemTime;
 

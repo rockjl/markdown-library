@@ -1,4 +1,4 @@
-use crate::app::MarkdownApp;
+use crate::ui::app::MarkdownApp;
 use crate::voice::VoiceEngine;
 use egui::{Color32, FontFamily, FontId, RichText, ScrollArea, TextEdit, Ui};
 use std::time::SystemTime;

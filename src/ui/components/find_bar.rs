@@ -1,6 +1,6 @@
 use egui::{RichText, TextEdit};
 
-use crate::app::MarkdownApp;
+use crate::ui::app::MarkdownApp;
 use crate::find_replace;
 use super::super::constants::EDITOR_ID;
 

@@ -1,6 +1,6 @@
 // Copyright (c) 2025 markdown-library
 
-use crate::app::MarkdownApp;
+use crate::ui::app::MarkdownApp;
 use crate::editor_actions;
 use crate::highlight;
 use crate::settings::ViewMode;
