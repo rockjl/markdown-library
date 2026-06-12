@@ -89,7 +89,8 @@ All data lives in `.markdown-library/` (local to the working directory, or `$APP
 ```
 src/
 ├── main.rs                  — Binary entrypoint
-├── app.rs                   — MarkdownApp (UI state, shortcuts, draw)
+├── app.rs                   — Re-exports MarkdownApp from ui::app
+├── debug_log.rs             — Shared logging utility (voice_debug.log)
 ├── asr/mod.rs               — TranscriptProvider trait
 ├── voice.rs                 — VoiceEngine (Xunfei WebSocket)
 ├── search/
@@ -98,18 +99,38 @@ src/
 │   ├── synonym.rs           — Synonym map (tell→explain, …)
 │   ├── score.rs             — jaccard / LCS / note_score (title 60% + tags 35% + content 5%)
 │   ├── matcher.rs           — search() with threshold
-│   └── transcript_processor.rs — extract_questions + split_queries + process_transcript()
+│   └── transcript_processor.rs — voice query processing
 ├── storage.rs               — Load/save notes, index, settings
 ├── note.rs                  — Note model
 ├── settings.rs              — Settings + ThemeMode + ViewMode
 ├── watcher.rs               — Filesystem watcher for content/*.md
 ├── editor_actions.rs        — Text mutation helpers
 ├── find_replace.rs          — Find/replace state
-├── highlight.rs             — Search highlight
+├── highlight.rs             — Syntax highlighting + startup warmup
 ├── theme.rs                 — ThemeColors
 ├── toc.rs                   — Table of contents
 ├── wikilinks.rs             — [[Note]] resolver
-└── attachments.rs           — Image paste handler
+├── attachments.rs           — Image paste handler
+└── ui/
+    ├── app.rs               — MarkdownApp (state, shortcuts, layout)
+    ├── constants.rs         — UI constants (IDs, margins)
+    ├── types.rs             — UI helper types
+    ├── utils.rs             — Paint helpers
+    ├── components/
+    │   ├── menu_bar.rs
+    │   ├── status_bar.rs
+    │   ├── toolbar.rs
+    │   └── find_bar.rs
+    ├── editor/
+    │   ├── editor.rs        — Source code editor
+    │   └── preview.rs       — Live CommonMark preview
+    ├── panels/
+    │   ├── sidebar.rs       — Note list + filter + tag group
+    │   ├── toc.rs           — Table of contents
+    │   └── backlinks.rs     — Incoming/outgoing links
+    └── windows/
+        ├── settings.rs      — Settings dialog
+        └── quick_switcher.rs— Ctrl+P fuzzy switcher
 ```
 
 ## License
