@@ -27,6 +27,10 @@ impl MarkdownApp {
                             self.open_file();
                             ui.close_menu();
                         }
+                        if ui.button("Import Q&A...").clicked() {
+                            self.import_qa_file();
+                            ui.close_menu();
+                        }
                         if ui.button("Save to file...  Ctrl+S").clicked() {
                             self.save_current_to_file();
                             ui.close_menu();

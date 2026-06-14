@@ -469,6 +469,27 @@ impl MarkdownApp {
         }
     }
 
+    /// Open a structured Q&A file and import each `## ` section as a separate note.
+    pub(crate) fn import_qa_file(&mut self) {
+        let Some(path) = rfd::FileDialog::new()
+            .add_filter("Markdown", &["md", "markdown"])
+            .pick_file()
+        else {
+            return;
+        };
+
+        let Ok(content) = fs::read_to_string(&path) else {
+            return;
+        };
+
+        let notes = parse_qa_notes(&content);
+        if notes.is_empty() {
+            return;
+        }
+        self.notes.extend(notes);
+        self.mark_dirty();
+    }
+
     /// Create a new blank note, select it, and open the editor.
     pub(crate) fn new_note(&mut self) {
         self.notes.push(Note::default());
@@ -929,4 +950,57 @@ impl eframe::App for MarkdownApp {
             self.save_settings();
         }
     }
+}
+
+/// Parse a structured Q&A markdown file into individual notes.
+///
+/// Each section starts with `## ` heading, followed by a comma-separated tags line,
+/// followed by the answer body. Returns one `Note` per section.
+fn parse_qa_notes(content: &str) -> Vec<Note> {
+    let mut notes = Vec::new();
+    let lines: Vec<&str> = content.lines().collect();
+    let mut i = 0;
+
+    while i < lines.len() {
+        let line = lines[i];
+        if !line.starts_with("## ") {
+            i += 1;
+            continue;
+        }
+
+        let title = line[3..].trim().to_string();
+
+        i += 1;
+
+        let mut tags = Vec::new();
+        while i < lines.len() && lines[i].trim().is_empty() {
+            i += 1;
+        }
+        if i < lines.len() {
+            let tag_line = lines[i];
+            if !tag_line.starts_with("## ") && !tag_line.starts_with('>') {
+                tags = tag_line
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                i += 1;
+            }
+        }
+
+        let mut content_lines = Vec::new();
+        content_lines.push(format!("## {}", title));
+        content_lines.push(String::new());
+        while i < lines.len() && !lines[i].starts_with("## ") {
+            content_lines.push(lines[i].to_string());
+            i += 1;
+        }
+
+        let content = content_lines.join("\n");
+        let mut note = Note::new(&title, &content);
+        note.tags = tags;
+        notes.push(note);
+    }
+
+    notes
 }
