@@ -757,42 +757,67 @@ pub(crate) fn load_user_font(ctx: &egui::Context, font_choice: FontChoice) {
         }
     }
 
-    add_cjk_fallback(&mut fonts);
+    add_font_fallbacks(&mut fonts);
 
     ctx.set_fonts(fonts);
 }
 
-/// Try to find a CJK-capable system font and append it to both font families.
-fn add_cjk_fallback(fonts: &mut egui::FontDefinitions) {
-    let cjk_candidates: &[&str] = &[
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
-        r"C:\Windows\Fonts\msyh.ttc",
-        r"C:\Windows\Fonts\msyhbd.ttc",
-        "/System/Library/Fonts/PingFang.ttc",
-        "/System/Library/Fonts/STHeiti Light.ttc",
-        "/System/Library/Fonts/STHeiti Medium.ttc",
+/// Try to find IPA- and CJK-capable fonts and append them as fallbacks.
+///
+/// Runs after the primary font is set, so the primary font's glyphs take priority.
+/// Tries two groups in order:
+///   1. A Latin+IPA font (NotoSans-Regular, DejaVu Sans, SegoeUI, Helvetica)
+///   2. A CJK font (NotoSansCJK, DroidSansFallbackFull, Microsoft YaHei, PingFang)
+/// Each is inserted as a separate named entry in the font family list, so egui's
+/// text renderer falls through to the next font when a glyph is missing.
+fn add_font_fallbacks(fonts: &mut egui::FontDefinitions) {
+    let fallback_groups: &[(&str, &[&str])] = &[
+        (
+            "IPA Fallback",
+            &[
+                "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+                r"C:\Windows\Fonts\SegoeUI.ttf",
+                r"C:\Windows\Fonts\segoeui.ttf",
+                "/System/Library/Fonts/Helvetica.ttc",
+            ],
+        ),
+        (
+            "CJK Fallback",
+            &[
+                "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+                "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+                "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+                "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+                r"C:\Windows\Fonts\msyh.ttc",
+                r"C:\Windows\Fonts\msyhbd.ttc",
+                "/System/Library/Fonts/PingFang.ttc",
+                "/System/Library/Fonts/STHeiti Light.ttc",
+                "/System/Library/Fonts/STHeiti Medium.ttc",
+            ],
+        ),
     ];
 
-    for &path in cjk_candidates {
-        if let Ok(bytes) = std::fs::read(path) {
-            fonts.font_data.insert(
-                "CJK Fallback".to_owned(),
-                egui::FontData::from_owned(bytes).into(),
-            );
-            fonts
-                .families
-                .entry(egui::FontFamily::Proportional)
-                .or_default()
-                .push("CJK Fallback".to_owned());
-            fonts
-                .families
-                .entry(egui::FontFamily::Monospace)
-                .or_default()
-                .push("CJK Fallback".to_owned());
-            return;
+    for &(family_name, candidates) in fallback_groups {
+        for &path in candidates {
+            if let Ok(bytes) = std::fs::read(path) {
+                fonts.font_data.insert(
+                    family_name.to_owned(),
+                    egui::FontData::from_owned(bytes).into(),
+                );
+                fonts
+                    .families
+                    .entry(egui::FontFamily::Proportional)
+                    .or_default()
+                    .push(family_name.to_owned());
+                fonts
+                    .families
+                    .entry(egui::FontFamily::Monospace)
+                    .or_default()
+                    .push(family_name.to_owned());
+                break;
+            }
         }
     }
 }
