@@ -486,8 +486,11 @@ impl MarkdownApp {
         if notes.is_empty() {
             return;
         }
+        let count = notes.len();
         self.notes.extend(notes);
         self.mark_dirty();
+        self.status_override = Some(format!("Imported {} Q&A notes", count));
+        self.status_override_at = Some(Instant::now());
     }
 
     /// Create a new blank note, select it, and open the editor.
@@ -690,69 +693,108 @@ impl MarkdownApp {
 
 /// Load the chosen font into egui's font system.
 ///
-/// Falls back through candidate paths then common OS font locations.
+/// Falls back through candidate paths then common OS font locations,
+/// then appends a CJK-capable system font as fallback so Chinese characters render.
 pub(crate) fn load_user_font(ctx: &egui::Context, font_choice: FontChoice) {
-    if matches!(font_choice, FontChoice::SystemDefault) {
-        ctx.set_fonts(egui::FontDefinitions::default());
-        return;
+    let mut fonts = egui::FontDefinitions::default();
+
+    if !matches!(font_choice, FontChoice::SystemDefault) {
+        let selected = font_choice.font_candidates();
+        let font_name = font_choice.display_name();
+
+        use std::collections::HashSet;
+        let mut tried: HashSet<String> = HashSet::new();
+        let mut loaded = false;
+
+        let mut try_path = |path: &str, fonts: &mut egui::FontDefinitions| -> bool {
+            if tried.contains(path) {
+                return false;
+            }
+            tried.insert(path.to_string());
+            if let Ok(bytes) = std::fs::read(path) {
+                fonts.font_data.insert(
+                    font_name.to_owned(),
+                    egui::FontData::from_owned(bytes).into(),
+                );
+                fonts
+                    .families
+                    .entry(egui::FontFamily::Proportional)
+                    .or_default()
+                    .push(font_name.to_owned());
+                fonts
+                    .families
+                    .entry(egui::FontFamily::Monospace)
+                    .or_default()
+                    .push(font_name.to_owned());
+                return true;
+            }
+            false
+        };
+
+        for &p in selected.iter() {
+            if try_path(p, &mut fonts) {
+                loaded = true;
+                break;
+            }
+        }
+
+        if !loaded {
+            let common_fallbacks: &[&str] = &[
+                r"C:\Windows\Fonts\SegoeUI.ttf",
+                r"C:\Windows\Fonts\segoeui.ttf",
+                r"C:\Windows\Fonts\arial.ttf",
+                "/System/Library/Fonts/Helvetica.ttc",
+                "/System/Library/Fonts/Arial.ttf",
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            ];
+            for &p in common_fallbacks.iter() {
+                if try_path(p, &mut fonts) {
+                    loaded = true;
+                    break;
+                }
+            }
+        }
     }
 
-    let mut fonts = egui::FontDefinitions::default();
-    let selected = font_choice.font_candidates();
-    let font_name = font_choice.display_name();
+    add_cjk_fallback(&mut fonts);
 
-    use std::collections::HashSet;
-    let mut tried: HashSet<String> = HashSet::new();
+    ctx.set_fonts(fonts);
+}
 
-    let mut try_path = |path: &str| -> bool {
-        if tried.contains(path) {
-            return false;
-        }
-        tried.insert(path.to_string());
+/// Try to find a CJK-capable system font and append it to both font families.
+fn add_cjk_fallback(fonts: &mut egui::FontDefinitions) {
+    let cjk_candidates: &[&str] = &[
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+        r"C:\Windows\Fonts\msyh.ttc",
+        r"C:\Windows\Fonts\msyhbd.ttc",
+        "/System/Library/Fonts/PingFang.ttc",
+        "/System/Library/Fonts/STHeiti Light.ttc",
+        "/System/Library/Fonts/STHeiti Medium.ttc",
+    ];
+
+    for &path in cjk_candidates {
         if let Ok(bytes) = std::fs::read(path) {
             fonts.font_data.insert(
-                font_name.to_owned(),
+                "CJK Fallback".to_owned(),
                 egui::FontData::from_owned(bytes).into(),
             );
             fonts
                 .families
                 .entry(egui::FontFamily::Proportional)
                 .or_default()
-                .push(font_name.to_owned());
+                .push("CJK Fallback".to_owned());
             fonts
                 .families
                 .entry(egui::FontFamily::Monospace)
                 .or_default()
-                .push(font_name.to_owned());
-            return true;
-        }
-        false
-    };
-
-    for &p in selected.iter() {
-        if try_path(p) {
-            ctx.set_fonts(fonts);
+                .push("CJK Fallback".to_owned());
             return;
         }
     }
-
-    let common_fallbacks: &[&str] = &[
-        r"C:\Windows\Fonts\SegoeUI.ttf",
-        r"C:\Windows\Fonts\segoeui.ttf",
-        r"C:\Windows\Fonts\arial.ttf",
-        "/System/Library/Fonts/Helvetica.ttc",
-        "/System/Library/Fonts/Arial.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-    ];
-    for &p in common_fallbacks.iter() {
-        if try_path(p) {
-            ctx.set_fonts(fonts);
-            return;
-        }
-    }
-
-    ctx.set_fonts(fonts);
 }
 
 impl eframe::App for MarkdownApp {
