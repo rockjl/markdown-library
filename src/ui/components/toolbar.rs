@@ -2,7 +2,6 @@ use egui::RichText;
 
 use crate::ui::app::MarkdownApp;
 use crate::editor_actions::EditorAction;
-use crate::theme;
 
 impl MarkdownApp {
     pub fn toolbar_button(&mut self, ui: &mut egui::Ui, label: &str, tooltip: &str, action: EditorAction) {
@@ -29,16 +28,6 @@ impl MarkdownApp {
                         self.toolbar_button(ui, "I", "Italic (Ctrl+I)", EditorAction::Wrap { prefix: "*", suffix: "*" });
                         self.toolbar_button(ui, "</>", "Inline code (Ctrl+E)", EditorAction::Wrap { prefix: "`", suffix: "`" });
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.small_button(RichText::new("A⁻").size(11.0)).on_hover_text("Decrease font size").clicked() {
-                                self.settings.editor_font_size = (self.settings.editor_font_size - 1.0).max(8.0);
-                                theme::apply(ui.ctx(), self.settings.theme, self.settings.editor_font_size);
-                                self.save_settings();
-                            }
-                            if ui.small_button(RichText::new("A⁺").size(11.0)).on_hover_text("Increase font size").clicked() {
-                                self.settings.editor_font_size = (self.settings.editor_font_size + 1.0).min(48.0);
-                                theme::apply(ui.ctx(), self.settings.theme, self.settings.editor_font_size);
-                                self.save_settings();
-                            }
                             if ui.small_button("⤢").on_hover_text("Expand toolbar").clicked() {
                                 self.toolbar_collapsed = false;
                                 self.save_settings();
@@ -68,17 +57,6 @@ impl MarkdownApp {
                         self.toolbar_button(ui, "❝", "Quote (Ctrl+Shift+Q)", EditorAction::LinePrefix("> "));
                         self.toolbar_button(ui, "—", "Horizontal rule", EditorAction::Insert("\n---\n"));
                         self.toolbar_button(ui, "⊞", "Table", EditorAction::Table { rows: 2, cols: 3 });
-                        ui.separator();
-                        if ui.small_button(RichText::new("A⁻").size(11.0)).on_hover_text("Decrease font size").clicked() {
-                            self.settings.editor_font_size = (self.settings.editor_font_size - 1.0).max(8.0);
-                            theme::apply(ui.ctx(), self.settings.theme, self.settings.editor_font_size);
-                            self.save_settings();
-                        }
-                        if ui.small_button(RichText::new("A⁺").size(11.0)).on_hover_text("Increase font size").clicked() {
-                            self.settings.editor_font_size = (self.settings.editor_font_size + 1.0).min(48.0);
-                            theme::apply(ui.ctx(), self.settings.theme, self.settings.editor_font_size);
-                            self.save_settings();
-                        }
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             if ui.small_button("⤡").on_hover_text("Collapse toolbar").clicked() {
                                 self.toolbar_collapsed = true;
