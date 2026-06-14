@@ -61,10 +61,24 @@ impl MarkdownApp {
                     });
 
                     ui.horizontal(|ui| {
-                        ui.label("Font size:");
+                        ui.label("Editor font size:");
                         if ui
                             .add(
                                 egui::DragValue::new(&mut self.settings.editor_font_size)
+                                    .range(8.0..=32.0)
+                                    .speed(0.5)
+                                    .suffix(" px"),
+                            )
+                            .changed()
+                        {
+                            settings_changed = true;
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Preview font size:");
+                        if ui
+                            .add(
+                                egui::DragValue::new(&mut self.settings.preview_font_size)
                                     .range(8.0..=32.0)
                                     .speed(0.5)
                                     .suffix(" px"),
@@ -180,7 +194,7 @@ impl MarkdownApp {
             load_user_font(ctx, self.settings.font_choice);
         }
         if settings_changed {
-            theme::apply(ctx, self.settings.theme, self.settings.editor_font_size);
+            theme::apply(ctx, self.settings.theme, self.settings.editor_font_size, self.settings.preview_font_size);
             self.save_settings();
         }
 
@@ -195,7 +209,7 @@ impl MarkdownApp {
                         if ui.button("Yes, restore").clicked() {
                             self.settings = crate::settings::Settings::default();
                             self.toolbar_collapsed = self.settings.toolbar_collapsed;
-                            theme::apply(ctx, self.settings.theme, self.settings.editor_font_size);
+                            theme::apply(ctx, self.settings.theme, self.settings.editor_font_size, self.settings.preview_font_size);
                             self.save_settings();
                             self.confirm_restore_defaults = false;
                         }

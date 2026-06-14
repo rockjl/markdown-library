@@ -117,7 +117,7 @@ impl MarkdownApp {
 
         load_user_font(&cc.egui_ctx, settings.font_choice);
 
-        theme::apply(&cc.egui_ctx, settings.theme, settings.editor_font_size);
+        theme::apply(&cc.egui_ctx, settings.theme, settings.editor_font_size, settings.preview_font_size);
 
         let notes = storage::load_notes();
 

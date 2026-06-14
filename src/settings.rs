@@ -107,6 +107,9 @@ pub struct Settings {
     /// Editor monospace font size in points
     #[serde(default = "default_font_size")]
     pub editor_font_size: f32,
+    /// Preview proportional font size in points
+    #[serde(default = "default_preview_font_size")]
+    pub preview_font_size: f32,
     /// Selected font family
     #[serde(default)]
     pub font_choice: FontChoice,
@@ -152,6 +155,7 @@ pub struct Settings {
 }
 
 fn default_font_size() -> f32 { 13.0 }
+fn default_preview_font_size() -> f32 { 14.0 }
 fn default_true() -> bool { true }
 fn default_sidebar_batch() -> usize { 80 }
 fn default_sidebar_width() -> f32 { 280.0 }
@@ -162,6 +166,7 @@ impl Default for Settings {
         Self {
             theme: ThemeMode::Dark,
             editor_font_size: 13.0,
+            preview_font_size: 14.0,
             font_choice: FontChoice::default(),
             show_line_numbers: true,
             word_wrap: true,

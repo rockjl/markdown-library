@@ -78,21 +78,22 @@ pub fn colors(mode: ThemeMode) -> ThemeColors {
     }
 }
 
-/// Apply the chosen theme mode and font size to an egui context.
+/// Apply the chosen theme mode and font sizes to an egui context.
 ///
 /// * `ctx` — egui context to style.
 /// * `mode` — `Dark` or `Light`.
-/// * `font_size` — monospace font size in points.
-pub fn apply(ctx: &egui::Context, mode: ThemeMode, font_size: f32) {
+/// * `editor_font_size` — monospace font size in points (editor).
+/// * `preview_font_size` — proportional font size in points (preview).
+pub fn apply(ctx: &egui::Context, mode: ThemeMode, editor_font_size: f32, preview_font_size: f32) {
     let c = colors(mode);
     let mut style = Style::default();
 
     style.text_styles = [
         (TextStyle::Small, FontId::new(11.0, FontFamily::Proportional)),
-        (TextStyle::Body, FontId::new(font_size, FontFamily::Proportional)),
+        (TextStyle::Body, FontId::new(preview_font_size, FontFamily::Proportional)),
         (TextStyle::Button, FontId::new(13.0, FontFamily::Proportional)),
         (TextStyle::Heading, FontId::new(18.0, FontFamily::Proportional)),
-        (TextStyle::Monospace, FontId::new(font_size, FontFamily::Monospace)),
+        (TextStyle::Monospace, FontId::new(editor_font_size, FontFamily::Monospace)),
     ]
     .into();
 
