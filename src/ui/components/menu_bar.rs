@@ -88,12 +88,12 @@ impl MarkdownApp {
                     });
                     ui.menu_button("Theme", |ui| {
                         if ui.radio_value(&mut self.settings.theme, ThemeMode::Dark, "🌙 Dark").clicked() {
-                            theme::apply(ctx, self.settings.theme, self.settings.editor_font_size, self.settings.preview_font_size);
+                            theme::apply(ctx, self.settings.theme, self.settings.editor_font_size);
                             self.save_settings();
                             ui.close_menu();
                         }
                         if ui.radio_value(&mut self.settings.theme, ThemeMode::Light, "☀ Light").clicked() {
-                            theme::apply(ctx, self.settings.theme, self.settings.editor_font_size, self.settings.preview_font_size);
+                            theme::apply(ctx, self.settings.theme, self.settings.editor_font_size);
                             self.save_settings();
                             ui.close_menu();
                         }

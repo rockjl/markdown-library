@@ -194,7 +194,7 @@ impl MarkdownApp {
             load_user_font(ctx, self.settings.font_choice);
         }
         if settings_changed {
-            theme::apply(ctx, self.settings.theme, self.settings.editor_font_size, self.settings.preview_font_size);
+            theme::apply(ctx, self.settings.theme, self.settings.editor_font_size);
             self.save_settings();
         }
 
@@ -209,7 +209,7 @@ impl MarkdownApp {
                         if ui.button("Yes, restore").clicked() {
                             self.settings = crate::settings::Settings::default();
                             self.toolbar_collapsed = self.settings.toolbar_collapsed;
-                            theme::apply(ctx, self.settings.theme, self.settings.editor_font_size, self.settings.preview_font_size);
+                            theme::apply(ctx, self.settings.theme, self.settings.editor_font_size);
                             self.save_settings();
                             self.confirm_restore_defaults = false;
                         }

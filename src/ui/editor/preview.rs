@@ -3,7 +3,7 @@
 use crate::ui::app::MarkdownApp;
 use crate::settings::ViewMode;
 use crate::wikilinks;
-use egui::{RichText, ScrollArea, Ui};
+use egui::{FontFamily, FontId, RichText, ScrollArea, TextStyle, Ui};
 use egui_commonmark::CommonMarkViewer;
 
 impl MarkdownApp {
@@ -64,6 +64,10 @@ impl MarkdownApp {
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
                     ui.set_max_width(ui.available_width());
+                    ui.style_mut().text_styles.insert(
+                        TextStyle::Body,
+                        FontId::new(self.settings.preview_font_size, FontFamily::Proportional),
+                    );
                     egui::Frame::none()
                         .inner_margin(egui::Margin::symmetric(20, 16))
                         .show(ui, |ui| {
