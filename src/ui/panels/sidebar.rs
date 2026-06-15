@@ -154,24 +154,20 @@ impl MarkdownApp {
                                 ui.set_max_width(available_w * 2.0);
                                 ui.set_max_height(300.0);
                                 egui::ScrollArea::vertical().show(ui, |ui| {
-                                    ui.horizontal_wrapped(|ui| {
-                                        ui.set_min_height(0.0);
-                                        for (tag, count) in self.all_tags() {
-                                            let is_sel = self.selected_tag.as_deref() == Some(&tag);
-                                            let label = if is_sel {
-                                                format!("* {} ({})", tag, count)
-                                            } else {
-                                                format!("{} ({})", tag, count)
-                                            };
-                                            let btn = egui::Button::new(
-                                                RichText::new(label).size(11.0)
-                                            );
-                                            if ui.add(btn).clicked() {
-                                                self.selected_tag = Some(tag);
-                                                self.show_tag_popup = false;
-                                            }
+                                    for (tag, count) in self.all_tags() {
+                                        let is_sel = self.selected_tag.as_deref() == Some(&tag);
+                                        let label = if is_sel {
+                                            format!("* {} ({})", tag, count)
+                                        } else {
+                                            format!("{} ({})", tag, count)
+                                        };
+                                        if ui.add(
+                                            egui::Button::new(RichText::new(label).size(11.0))
+                                        ).clicked() {
+                                            self.selected_tag = Some(tag);
+                                            self.show_tag_popup = false;
                                         }
-                                    });
+                                    }
                                 });
                             });
                         });
