@@ -6,7 +6,6 @@ use crate::export;
 use crate::find_replace::FindReplaceState;
 use crate::note::Note;
 use crate::search::index::SearchIndex;
-use crate::search::matcher::SearchHit;
 use crate::settings::{FontChoice, Settings, ViewMode};
 use crate::storage;
 use crate::theme::self;
@@ -88,12 +87,6 @@ pub struct MarkdownApp {
     pub(crate) status_override_at: Option<Instant>,
     /// Optional ASR voice engine instance.
     pub(crate) voice_engine: Option<VoiceEngine>,
-    /// Terminal output from voice-engine debug logs.
-    voice_terminal: String,
-    /// Results from the most recent voice search.
-    pub(crate) voice_search_results: Vec<SearchHit>,
-    /// When `true` the preview is shown for the voice-search top result.
-    voice_preview_mode: bool,
     /// The raw transcript from the most recent voice recording.
     pub(crate) current_transcript: String,
     /// Pre-computed search index for full-text search.
@@ -160,9 +153,6 @@ impl MarkdownApp {
             status_override: None,
             status_override_at: None,
             voice_engine: None,
-            voice_terminal: String::new(),
-            voice_search_results: Vec::new(),
-            voice_preview_mode: false,
             current_transcript: String::new(),
             search_index,
             selected_tag: None,
@@ -192,31 +182,19 @@ impl MarkdownApp {
         self.last_save_at = Instant::now();
     }
 
-    /// Stop the voice engine, poll the transcript, and run it through `process_transcript`.
-    ///
-    /// Updates `voice_search_results`, `voice_preview_mode`, and auto-selects the best hit.
+    /// Stop the voice engine, drain the transcript queue, and populate the search box.
     pub(crate) fn stop_and_search(&mut self) {
-        let text = if let Some(ref eng) = self.voice_engine {
+        let mut transcript = String::new();
+        if let Some(ref eng) = self.voice_engine {
             eng.stop();
-            eng.poll()
-        } else {
-            None
-        };
-        self.voice_engine = None;
-        if let Some(transcript) = text {
-            self.current_transcript = transcript.clone();
-            if let Some(ref index) = self.search_index.clone() {
-                let hits = crate::search::transcript_processor::process_transcript(index, &transcript);
-                self.voice_search_results = hits;
-                if !self.voice_search_results.is_empty() {
-                    self.voice_preview_mode = true;
-                    let best = self.voice_search_results[0].note_id;
-                    if let Some(idx) = self.notes.iter().position(|n| n.id == best) {
-                        self.selected = Some(idx);
-                        self.settings.view_mode = ViewMode::PreviewOnly;
-                    }
-                }
+            while let Some(text) = eng.poll() {
+                transcript.push_str(&text);
             }
+        }
+        self.voice_engine = None;
+        if !transcript.is_empty() {
+            self.current_transcript = transcript.clone();
+            self.search_query = transcript;
         }
     }
 
@@ -959,38 +937,6 @@ impl eframe::App for MarkdownApp {
                     });
                 }
             });
-
-        if let Some(ref eng) = self.voice_engine {
-            while let Some(text) = eng.poll() {
-                self.voice_terminal.push_str(&text);
-                self.voice_terminal.push('\n');
-                self.current_transcript = text;
-            }
-            ctx.request_repaint();
-        }
-
-        if self.voice_engine.is_some() {
-            let mut open = true;
-            egui::Window::new("Terminal")
-                .open(&mut open)
-                .resizable(true)
-                .default_width(400.0)
-                .default_height(300.0)
-                .show(ctx, |ui| {
-                    egui::ScrollArea::vertical()
-                        .auto_shrink([false, false])
-                        .stick_to_bottom(true)
-                        .show(ui, |ui| {
-                            ui.label(&self.voice_terminal);
-                        });
-                });
-            if !open {
-                if let Some(ref eng) = self.voice_engine {
-                    eng.stop();
-                }
-                self.voice_engine = None;
-            }
-        }
 
         self.draw_find_bar(ctx);
         self.draw_settings_window(ctx);

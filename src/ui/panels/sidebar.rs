@@ -87,9 +87,6 @@ impl MarkdownApp {
                     search_resp.request_focus();
                     self.focus_sidebar_search = false;
                 }
-                if !self.voice_search_results.is_empty() && !self.search_query.is_empty() {
-                    self.voice_search_results.clear();
-                }
 
                 if search_resp.lost_focus() && ui.ctx().input(|i| i.key_pressed(egui::Key::Enter)) {
                     let q = self.search_query.trim().to_string();
@@ -221,61 +218,6 @@ impl MarkdownApp {
                 let query = self.search_query.clone();
                 let query_lc = query.to_lowercase();
                 let show_trash = self.show_trash;
-
-                if !self.voice_search_results.is_empty() {
-                    let recording = self.voice_engine.as_ref().map_or(false, |v| v.is_running());
-                    ui.label(RichText::new(
-                        if recording { "🔴 Listening..." } else { "🔍 Voice Results" }
-                    ).size(13.0).color(c.accent));
-                    ui.add_space(4.0);
-                    for hit in &self.voice_search_results {
-                        let is_selected = self.selected.and_then(|s| self.notes.get(s)).map_or(false, |n| n.id == hit.note_id);
-                        let note_idx = self.notes.iter().position(|n| n.id == hit.note_id);
-                        let desired_height = 52.0;
-                        let (rect, response) = ui.allocate_exact_size(
-                            egui::vec2(ui.available_width(), desired_height),
-                            egui::Sense::click(),
-                        );
-                        if response.clicked() {
-                            if let Some(idx) = note_idx {
-                                self.selected = Some(idx);
-                                self.settings.view_mode = crate::settings::ViewMode::PreviewOnly;
-                            }
-                        }
-                        let bg = if is_selected {
-                            c.selected_item_bg
-                        } else if response.hovered() {
-                            c.hover_item_bg
-                        } else {
-                            c.sidebar_bg
-                        };
-                        if is_selected || response.hovered() {
-                            let bg_rect = egui::Rect::from_min_max(
-                                rect.min + egui::vec2(0.0, 2.0),
-                                egui::pos2(rect.max.x, rect.max.y - 4.0),
-                            );
-                            ui.painter().rect_filled(bg_rect, 4.0, bg);
-                        }
-                        let title_pos = rect.min + egui::vec2(12.0, 8.0);
-                        ui.painter().text(
-                            title_pos,
-                            egui::Align2::LEFT_TOP,
-                            &hit.title,
-                            egui::FontId::new(14.0, FontFamily::Proportional),
-                            if is_selected { Color32::WHITE } else { c.text_normal },
-                        );
-                        let score_text = format!("score: {:.2}", hit.score);
-                        let score_pos = rect.min + egui::vec2(12.0, 30.0);
-                        ui.painter().text(
-                            score_pos,
-                            egui::Align2::LEFT_TOP,
-                            score_text,
-                            egui::FontId::new(11.0, FontFamily::Proportional),
-                            c.text_dim,
-                        );
-                    }
-                    return;
-                }
 
                 let filtered: Vec<usize> = if self.show_recent {
                     let hist: Vec<usize> = self.note_history.iter()
