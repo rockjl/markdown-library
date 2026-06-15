@@ -184,8 +184,9 @@ impl MarkdownApp {
             .fill(c.sidebar_bg)
             .inner_margin(egui::Margin::symmetric(8, 4))
             .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    let all_btn = egui::SelectableLabel::new(
+                if self.library_mode {
+                    ui.horizontal(|ui| {
+                        let all_btn = egui::SelectableLabel::new(
                         !self.show_trash,
                         RichText::new("📝 Notes").size(12.0).color(c.text_normal),
                     );
@@ -210,6 +211,7 @@ impl MarkdownApp {
                         }
                     }
                 });
+                }
             });
 
         egui::Frame::none().fill(c.sidebar_bg).show(ui, |ui| {
