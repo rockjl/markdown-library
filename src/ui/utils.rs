@@ -110,7 +110,7 @@ impl MarkdownApp {
             }
         }
         let mut result: Vec<_> = counts.into_iter().collect();
-        result.sort_by(|a, b| b.1.cmp(&a.1));
+        result.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
         result
     }
 }
