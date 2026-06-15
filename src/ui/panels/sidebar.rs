@@ -151,11 +151,12 @@ impl MarkdownApp {
                         .show(ui.ctx(), |ui| {
                             egui::Frame::popup(ui.style()).show(ui, |ui| {
                                 ui.set_min_width(available_w);
-                                ui.set_max_width(available_w);
+                                ui.set_max_width(available_w * 2.0);
                                 ui.set_max_height(300.0);
                                 egui::ScrollArea::vertical().show(ui, |ui| {
+                                    let inner_w = ui.available_width();
                                     ui.horizontal_wrapped(|ui| {
-                                        ui.set_min_height(0.0);
+                                        ui.set_min_size(egui::vec2(inner_w, 0.0));
                                         for (tag, count) in self.all_tags() {
                                             let is_sel = self.selected_tag.as_deref() == Some(&tag);
                                             let label = if is_sel {
