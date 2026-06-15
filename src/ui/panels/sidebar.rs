@@ -156,15 +156,15 @@ impl MarkdownApp {
                                 egui::ScrollArea::vertical().show(ui, |ui| {
                                     ui.horizontal_wrapped(|ui| {
                                         ui.set_min_height(0.0);
-                                        for tag in self.all_tags() {
+                                        for (tag, count) in self.all_tags() {
                                             let is_sel = self.selected_tag.as_deref() == Some(&tag);
-                                            let tag_text = if is_sel {
-                                                format!("* {}", tag)
+                                            let label = if is_sel {
+                                                format!("* {} ({})", tag, count)
                                             } else {
-                                                tag.clone()
+                                                format!("{} ({})", tag, count)
                                             };
                                             let btn = egui::Button::new(
-                                                RichText::new(tag_text).size(11.0)
+                                                RichText::new(label).size(11.0)
                                             );
                                             if ui.add(btn).clicked() {
                                                 self.selected_tag = Some(tag);

@@ -99,16 +99,18 @@ impl MarkdownApp {
         format!("{}w ago", diff / 604800)
     }
 
-    pub fn all_tags(&self) -> Vec<String> {
-        let mut tags: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    pub fn all_tags(&self) -> Vec<(String, usize)> {
+        let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
         for n in &self.notes {
             if n.trashed { continue; }
             for t in &n.tags {
                 if !t.is_empty() {
-                    tags.insert(t.clone());
+                    *counts.entry(t.clone()).or_default() += 1;
                 }
             }
         }
-        tags.into_iter().collect()
+        let mut result: Vec<_> = counts.into_iter().collect();
+        result.sort_by(|a, b| b.1.cmp(&a.1));
+        result
     }
 }
