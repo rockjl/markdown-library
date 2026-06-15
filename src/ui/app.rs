@@ -320,6 +320,14 @@ impl MarkdownApp {
         if key_esc && self.find.visible {
             self.find.close();
         }
+        if key_esc && self.quick_switcher.visible {
+            self.quick_switcher.close();
+        }
+        if key_esc && !self.find.visible && !self.quick_switcher.visible && !self.show_settings && !self.show_backlinks
+            && !self.confirm_restore_defaults && !self.confirm_empty_trash
+        {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
         if alt && key_up {
             self.pending_line_move = Some(true);
         }
