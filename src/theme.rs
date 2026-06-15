@@ -88,10 +88,6 @@ pub fn apply(ctx: &egui::Context, mode: ThemeMode, editor_font_size: f32) {
     let mut style = Style::default();
 
     style.text_styles = [
-        (TextStyle::Small, FontId::new(11.0, FontFamily::Proportional)),
-        (TextStyle::Body, FontId::new(14.0, FontFamily::Proportional)),
-        (TextStyle::Button, FontId::new(13.0, FontFamily::Proportional)),
-        (TextStyle::Heading, FontId::new(18.0, FontFamily::Proportional)),
         (TextStyle::Monospace, FontId::new(editor_font_size, FontFamily::Monospace)),
     ]
     .into();
