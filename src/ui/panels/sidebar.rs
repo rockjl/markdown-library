@@ -28,6 +28,7 @@ impl MarkdownApp {
                     let resp = ui.add(
                         egui::Button::new(RichText::new(voice_label).size(16.0))
                             .min_size(btn_size)
+                            .fill(if is_recording { Color32::from_rgb(180, 40, 40) } else { Color32::TRANSPARENT })
                     );
                     if resp.on_hover_text(voice_tip).clicked() {
                         if is_recording {
