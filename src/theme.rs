@@ -87,10 +87,10 @@ pub fn apply(ctx: &egui::Context, mode: ThemeMode, editor_font_size: f32) {
     let c = colors(mode);
     let mut style = Style::default();
 
-    style.text_styles = [
-        (TextStyle::Monospace, FontId::new(editor_font_size, FontFamily::Monospace)),
-    ]
-    .into();
+    style.text_styles.insert(
+        TextStyle::Monospace,
+        FontId::new(editor_font_size, FontFamily::Monospace),
+    );
 
     style.spacing.item_spacing = egui::vec2(10.0, 6.0);
     style.spacing.button_padding = egui::vec2(12.0, 6.0);
